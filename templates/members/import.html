@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Importer des contacts{% endblock %}
+{% block page_title %}Importer des contacts (CSV){% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Pour reprendre les données exportées de ClubDesk ou d'un tableur. Les colonnes sont reconnues par leur libellé (Prénom, Nom, Adresse, Code postal, Ville, Email, Date de naissance…).</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'members:list' %}"><i class="bi bi-arrow-left"></i> Contacts</a>{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card"><div class="card-body">
+      <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}{{ form|crispy }}<button class="btn btn-primary" type="submit"><i class="bi bi-upload"></i> Importer</button></form>
+    </div></div>
+  </div>
+  <div class="col-lg-6">
+    {% if report %}
+    <div class="card"><div class="card-header">Résultat</div><div class="card-body">
+      <p class="mb-1"><strong>{{ report.created }}</strong> fiche(s) créée(s), {{ report.skipped }} ligne(s) ignorée(s) (sans nom).</p>
+      {% if report.errors %}<div class="alert alert-warning small mb-0"><ul class="mb-0 ps-3">{% for e in report.errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+      <a class="btn btn-outline-primary btn-sm mt-3" href="{% url 'members:list' %}">Voir les contacts</a>
+    </div></div>
+    {% else %}
+    <div class="card"><div class="card-header">Conseils</div><div class="card-body small text-muted">
+      <ul class="ps-3 mb-0">
+        <li>Dates au format <code>JJ.MM.AAAA</code> ou <code>AAAA-MM-JJ</code>.</li>
+        <li>Colonne <em>Groupe</em> : plusieurs groupes séparés par des virgules (créés s'ils n'existent pas).</li>
+        <li>Colonne <em>Jours d'entraînement</em> : ex. <code>Lundi, Mercredi</code>.</li>
+        <li>Les IDs sont générés automatiquement ; les homonymes reçoivent un suffixe numérique.</li>
+        <li>Le N° AVS est validé (chiffre de contrôle) et formaté automatiquement.</li>
+      </ul>
+    </div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

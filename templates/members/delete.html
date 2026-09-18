@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Supprimer {{ member.display_name }}{% endblock %}
+{% block page_title %}Supprimer définitivement la fiche{% endblock %}
+{% block content %}
+<div class="card border-danger" style="max-width:620px">
+  <div class="card-body">
+    <p>Vous êtes sur le point de supprimer <strong>définitivement</strong> la fiche de <strong>{{ member.display_name }}</strong> ({{ member.get_profile_display }}, ID <code>{{ member.member_id }}</code>). Cette action est irréversible.</p>
+    {% if member.profile == 'ESSAI' %}<p class="small text-muted">Cas prévu : essai concluant → la fiche « Essai » est supprimée et une fiche définitive est créée à partir du formulaire d'inscription.</p>{% endif %}
+    {% if member.invoices.exists %}<div class="alert alert-warning">Cette fiche possède des factures : la suppression est bloquée. Passez la fiche en statut « Inactif / sorti » à la place.</div>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <label class="form-label">Pour confirmer, recopiez l'ID de la fiche : <code>{{ member.member_id }}</code></label>
+      <input class="form-control mb-3" name="confirm" autocomplete="off" required>
+      <button class="btn btn-danger" type="submit" {% if member.invoices.exists %}disabled{% endif %}><i class="bi bi-trash"></i> Supprimer définitivement</button>
+      <a class="btn btn-link" href="{% url 'members:detail' member.pk %}">Annuler</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

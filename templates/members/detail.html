@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ member.display_name }}{% endblock %}
+{% block page_title %}{{ member.display_name }} <span class="badge-status status-{{ member.status }} ms-2 align-middle">{{ member.get_status_display }}</span>{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">{{ member.get_profile_display }} · ID <code>{{ member.member_id }}</code>{% if member.category %} · Catégorie <strong>{{ member.category }}</strong>{% endif %}{% if member.age is not None %} · {{ member.age }} ans{% endif %}</p>{% endblock %}
+{% block page_actions %}
+{% if member.status == 'EN_ATTENTE' %}
+<form method="post" action="{% url 'members:validate' member.pk %}" data-confirm="Valider l'inscription de {{ member.display_name }} ?">{% csrf_token %}<button class="btn btn-success" type="submit"><i class="bi bi-check2-circle"></i> Valider l'inscription</button></form>
+{% endif %}
+<a class="btn btn-outline-secondary" href="{% url 'members:list' %}"><i class="bi bi-arrow-left"></i> Liste</a>
+<a class="btn btn-primary" href="{% url 'members:edit' member.pk %}"><i class="bi bi-pencil"></i> Modifier</a>
+{% endblock %}
+{% block content %}
+{% if member.status == 'EN_ATTENTE' and member.profile != 'ESSAI' %}
+<div class="alert alert-info d-flex gap-2"><i class="bi bi-info-circle-fill mt-1"></i><div>Inscription en attente de validation. Avant de valider, complétez dans l'onglet <strong>Finance</strong> la tranche tarifaire et, le cas échéant, la réduction famille (2ᵉ enfant) et le statut étudiant — ces informations ne sont pas demandées dans le formulaire public.</div></div>
+{% endif %}
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-general" type="button">Générales</button></li>
+  {% if finance %}<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-finance" type="button">Finance</button></li>{% endif %}
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="tab-general">
+    <div class="row g-4">
+      {% for title, items in sections %}
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header">{{ title }}</div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              {% for it in items %}
+              <dt class="col-sm-5 text-muted fw-normal small">{{ it.label }}</dt>
+              <dd class="col-sm-7 mb-1">
+                {% if it.sensitive and it.value %}
+                  <span class="sensitive sensitive-hidden" id="sens-{{ it.key }}">{{ it.value }}</span>
+                  <button class="btn btn-link btn-sm p-0 ms-2" type="button" data-reveal="#sens-{{ it.key }}"><i class="bi bi-eye"></i> Afficher</button>
+                {% elif it.key == 'email' or it.key == 'email_alt' or it.key == 'email_parent1' or it.key == 'email_parent2' %}
+                  {% if it.value %}<a href="mailto:{{ it.value }}">{{ it.value }}</a>{% else %}<span class="text-muted">—</span>{% endif %}
+                {% else %}
+                  {{ it.value|default:"—"|linebreaksbr }}
+                {% endif %}
+              </dd>
+              {% endfor %}
+            </dl>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if finance %}
+  <div class="tab-pane fade" id="tab-finance">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="card">
+          <div class="card-header">Cotisation</div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-6 text-muted fw-normal small">Modalité d'entraînement</dt><dd class="col-sm-6">{{ member.training_mode|default:"—" }}</dd>
+              {% for it in finance %}
+              <dt class="col-sm-6 text-muted fw-normal small">{{ it.label }}</dt><dd class="col-sm-6">{{ it.value|default:"—" }}</dd>
+              {% endfor %}
+            </dl>
+            {% if member.training_mode and not member.tariff_bracket %}
+            <p class="small text-warning mb-0 mt-2"><i class="bi bi-exclamation-triangle"></i> Tranche tarifaire non renseignée : le montant ne peut pas être calculé.</p>
+            {% elif member.training_mode and member.base_tariff is None %}
+            <p class="small text-warning mb-0 mt-2"><i class="bi bi-exclamation-triangle"></i> Montant non défini dans le <a href="{% url 'billing:tariffs' %}">barème</a> pour cette combinaison.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center"><span>Factures</span>
+            {% if member.computed_amount is not None and member.status == 'ACTIF' or member.status == 'LICENCE' %}<a class="btn btn-sm btn-outline-primary" href="{% url 'billing:invoice_create' member.pk %}"><i class="bi bi-plus-lg"></i> Générer une facture</a>{% endif %}</div>
+          {% if invoices %}
+          <div class="table-responsive"><table class="table table-hover table-clickable">
+            <thead><tr><th>N°</th><th>Saison</th><th class="text-end">Montant</th><th>Émise</th><th>Statut</th></tr></thead>
+            <tbody>{% for inv in invoices %}<tr data-href="{% url 'billing:invoice_detail' inv.pk %}"><td>{{ inv.number }}</td><td>{{ inv.season }}</td><td class="text-end">CHF {{ inv.amount|floatformat:2 }}</td><td>{{ inv.issue_date|date:"d.m.Y" }}</td><td><span class="badge-status inv-{{ inv.status }}">{{ inv.get_status_display }}</span></td></tr>{% endfor %}</tbody>
+          </table></div>
+          {% else %}<div class="empty-state py-4"><i class="bi bi-receipt"></i>Aucune facture.</div>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="mt-4 d-flex justify-content-between align-items-center small text-muted">
+  <span>Créée le {{ member.created_at|date:"d.m.Y H:i" }}{% if member.created_by %} par {{ member.created_by.get_full_name|default:member.created_by.username }}{% endif %} · modifiée le {{ member.updated_at|date:"d.m.Y H:i" }}</span>
+  <a class="text-danger" href="{% url 'members:delete' member.pk %}"><i class="bi bi-trash"></i> Supprimer définitivement cette fiche</a>
+</div>
+{% endblock %}

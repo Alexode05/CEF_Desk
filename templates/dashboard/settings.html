@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Paramètres du club{% endblock %}
+{% block page_title %}Paramètres du club{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Point de configuration unique : coordonnées du club, compte bancaire des QR-factures, adresses du comité, textes des emails.</p>{% endblock %}
+{% block content %}
+{% if club.bank_details_are_placeholder %}
+<div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill"></i> Les coordonnées bancaires ci-dessous sont des <strong>valeurs fictives de développement</strong> (marquées <code>[PLACEHOLDER]</code>). À remplacer par les vraies coordonnées du club avant tout envoi réel de factures.</div>
+{% endif %}
+<form method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card mb-4">
+        <div class="card-header">Identité du club</div>
+        <div class="card-body">
+          {{ form.club_name|as_crispy_field }}
+          {{ form.street|as_crispy_field }}
+          <div class="row"><div class="col-4">{{ form.postal_code|as_crispy_field }}</div><div class="col-5">{{ form.city|as_crispy_field }}</div><div class="col-3">{{ form.country|as_crispy_field }}</div></div>
+          {{ form.logo|as_crispy_field }}
+          {% if club.logo %}<img src="{{ club.logo.url }}" alt="Logo" style="max-height:60px">{% endif %}
+        </div>
+      </div>
+      <div class="card mb-4">
+        <div class="card-header">Compte bancaire (créancier des QR-factures)</div>
+        <div class="card-body">
+          {{ form.creditor_name|as_crispy_field }}
+          {{ form.iban|as_crispy_field }}
+          <p class="small text-muted mb-0">Type détecté : <strong>{% if club.is_qr_iban %}QR-IBAN → référence QR{% else %}IBAN → référence SCOR (ISO 11649){% endif %}</strong></p>
+        </div>
+      </div>
+      <div class="card mb-4">
+        <div class="card-header">Adresses email du comité</div>
+        <div class="card-body">
+          {{ form.treasurer_email|as_crispy_field }}
+          {{ form.secretariat_email|as_crispy_field }}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card mb-4">
+        <div class="card-header">Saison et délais</div>
+        <div class="card-body">
+          <div class="row"><div class="col-4">{{ form.season_start_month|as_crispy_field }}</div><div class="col-4">{{ form.invoice_due_days|as_crispy_field }}</div><div class="col-4">{{ form.reminder_delay_days|as_crispy_field }}</div></div>
+          <p class="small text-muted mb-0">Saison courante calculée : <strong>{{ current_season }}</strong>.</p>
+        </div>
+      </div>
+      <div class="card mb-4">
+        <div class="card-header">Emails de facturation</div>
+        <div class="card-body">
+          {{ form.invoice_email_subject|as_crispy_field }}
+          {{ form.invoice_email_body|as_crispy_field }}
+          <hr>
+          {{ form.reminder_email_subject|as_crispy_field }}
+          {{ form.reminder_email_body|as_crispy_field }}
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-primary btn-lg" type="submit"><i class="bi bi-save"></i> Enregistrer les paramètres</button>
+</form>
+{% endblock %}

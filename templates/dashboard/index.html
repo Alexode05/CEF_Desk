@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Saison {{ current_season }} · vue d'ensemble partagée par tout le comité</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-primary" href="{% url 'members:create' %}"><i class="bi bi-person-plus"></i> Nouveau contact</a>
+{% endblock %}
+{% block content %}
+{% if club.bank_details_are_placeholder %}
+<div class="alert alert-warning d-flex gap-2 align-items-start"><i class="bi bi-exclamation-triangle-fill mt-1"></i>
+  <div>Les <strong>coordonnées bancaires du club sont des valeurs fictives</strong> (placeholder). Les factures générées ne sont pas encaissables tant qu'elles ne sont pas remplacées dans les <a href="{% url 'dashboard:settings' %}">Paramètres du club</a>.</div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <a class="card stat-card" href="{% url 'members:list' %}?cat=membres&status=ACTIF">
+      <span class="stat-icon success"><i class="bi bi-people-fill"></i></span>
+      <span><span class="stat-value">{{ active_count }}</span><br><span class="stat-label">membres actifs</span></span>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a class="card stat-card" href="{% url 'billing:invoice_list' %}?etat=impayees">
+      <span class="stat-icon warning"><i class="bi bi-hourglass-split"></i></span>
+      <span><span class="stat-value">{{ unpaid_count }}</span><br><span class="stat-label">factures en attente de paiement</span></span>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a class="card stat-card" href="{% url 'members:list' %}?status=EN_ATTENTE">
+      <span class="stat-icon"><i class="bi bi-person-check"></i></span>
+      <span><span class="stat-value">{{ pending_count }}</span><br><span class="stat-label">inscriptions à valider</span></span>
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-receipt me-1"></i> Factures en attente de paiement</span>
+        <a class="small" href="{% url 'billing:invoice_list' %}?etat=impayees">Tout voir</a>
+      </div>
+      {% if unpaid %}
+      <div class="table-responsive">
+        <table class="table table-hover table-clickable">
+          <thead><tr><th>N°</th><th>Membre</th><th class="text-end">Montant</th><th>Émise le</th><th>Prochain rappel</th><th>Statut</th></tr></thead>
+          <tbody>
+          {% for inv in unpaid %}
+            <tr data-href="{% url 'billing:invoice_detail' inv.pk %}">
+              <td class="text-nowrap">{{ inv.number }}</td>
+              <td>{{ inv.member.display_name }}</td>
+              <td class="text-end text-nowrap">CHF {{ inv.amount|floatformat:2 }}</td>
+              <td class="text-nowrap">{{ inv.issue_date|date:"d.m.Y" }}</td>
+              <td class="text-nowrap">{% if inv.next_reminder_date %}{{ inv.next_reminder_date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+              <td><span class="badge-status inv-{{ inv.status }}">{{ inv.get_status_display }}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state"><i class="bi bi-check2-circle"></i>Aucune facture en attente.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-person-check me-1"></i> Dernières inscriptions en attente de validation</span>
+        <a class="small" href="{% url 'members:list' %}?status=EN_ATTENTE">Tout voir</a>
+      </div>
+      {% if pending_members %}
+      <div class="table-responsive">
+        <table class="table table-hover table-clickable">
+          <thead><tr><th>Nom</th><th>Profil</th><th>Reçue le</th><th>Email</th></tr></thead>
+          <tbody>
+          {% for m in pending_members %}
+            <tr data-href="{% url 'members:detail' m.pk %}">
+              <td class="fw-semibold">{{ m.display_name }}</td>
+              <td>{{ m.get_profile_display }}</td>
+              <td class="text-nowrap">{{ m.created_at|date:"d.m.Y H:i" }}</td>
+              <td>{{ m.primary_email|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state"><i class="bi bi-inbox"></i>Aucune inscription en attente.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card postit mb-4">
+      <div class="card-header border-0 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-sticky me-1"></i> Notes du comité</span>
+        <span class="small text-muted" data-autosave-status>{% if note.updated_at and note.updated_by %}Modifié le {{ note.updated_at|date:"d.m.Y H:i" }} par {{ note.updated_by.first_name|default:note.updated_by.username }}{% endif %}</span>
+      </div>
+      <div class="card-body pt-0">
+        {% csrf_token %}
+        <textarea class="form-control" data-autosave-url="{% url 'dashboard:save_note' %}" placeholder="Pense-bête partagé : écrivez ici, l'enregistrement est automatique.">{{ note.content }}</textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-check2-square me-1"></i> To-do liste du comité</div>
+      <div class="card-body">
+        <form method="post" action="{% url 'dashboard:todo_add' %}" class="d-flex gap-2 mb-3">
+          {% csrf_token %}
+          {{ todo_form.text }}
+          <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i></button>
+        </form>
+        {% for t in todos %}
+        <div class="todo-item {% if t.is_done %}done{% endif %}">
+          <form method="post" action="{% url 'dashboard:todo_toggle' t.pk %}">{% csrf_token %}
+            <input class="form-check-input mt-1" type="checkbox" onchange="this.form.submit()" {% if t.is_done %}checked{% endif %} aria-label="Terminée">
+          </form>
+          <div class="flex-grow-1">
+            <div class="todo-text">{{ t.text }}</div>
+            <div class="todo-meta">
+              Créée par {{ t.created_by.first_name|default:t.created_by.username|default:"—" }} le {{ t.created_at|date:"d.m.Y" }}
+              {% if t.is_done %} · cochée par {{ t.done_by.first_name|default:t.done_by.username|default:"—" }} le {{ t.done_at|date:"d.m.Y H:i" }}{% endif %}
+            </div>
+          </div>
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="collapse" data-bs-target="#edit-{{ t.pk }}" title="Modifier"><i class="bi bi-pencil"></i></button>
+            <form method="post" action="{% url 'dashboard:todo_delete' t.pk %}" data-confirm="Supprimer cette tâche ?">{% csrf_token %}
+              <button class="btn btn-sm btn-link text-danger p-0" type="submit" title="Supprimer"><i class="bi bi-trash"></i></button>
+            </form>
+          </div>
+        </div>
+        <div class="collapse" id="edit-{{ t.pk }}">
+          <form method="post" action="{% url 'dashboard:todo_edit' t.pk %}" class="d-flex gap-2 py-2">{% csrf_token %}
+            <input class="form-control form-control-sm" name="text" value="{{ t.text }}" maxlength="300">
+            <button class="btn btn-sm btn-outline-primary" type="submit">OK</button>
+          </form>
+        </div>
+        {% empty %}
+        <div class="empty-state py-3"><i class="bi bi-list-check"></i>Aucune tâche pour l'instant.</div>
+        {% endfor %}
+        {% if todo_logs %}
+        <details class="mt-3 small text-muted">
+          <summary>Historique récent</summary>
+          <ul class="mb-0 mt-2 ps-3">
+            {% for l in todo_logs %}<li>{{ l.at|date:"d.m.Y H:i" }} — {{ l.user.first_name|default:l.user.username|default:"—" }} : {{ l.get_action_display|lower }} « {{ l.todo_text|truncatechars:60 }} »</li>{% endfor %}
+          </ul>
+        </details>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

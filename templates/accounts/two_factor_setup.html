@@ -1,0 +1,29 @@
+{% extends "base_public.html" %}
+{% block title %}Configurer l'A2F · CEF Desk{% endblock %}
+{% block wrap_class %}wide{% endblock %}
+{% block content %}
+<h1 class="h4 mb-1">Authentification à deux facteurs</h1>
+<p class="text-muted mb-4">Étape obligatoire pour protéger les données des membres. Vous aurez besoin d'une application d'authentification sur votre téléphone (Google Authenticator, Microsoft Authenticator, Authy…).</p>
+<div class="row g-4 align-items-start">
+  <div class="col-md-5 text-center">
+    <div class="qr-box"><img src="{{ qr_data_uri }}" alt="QR code de configuration"></div>
+    <p class="small text-muted mt-3 mb-1">Impossible de scanner ? Saisissez cette clé manuellement :</p>
+    <div class="secret-code">{{ secret }}</div>
+  </div>
+  <div class="col-md-7">
+    <ol class="ps-3 mb-4">
+      <li class="mb-2">Ouvrez votre application d'authentification.</li>
+      <li class="mb-2">Ajoutez un compte en scannant le QR code ci-contre.</li>
+      <li class="mb-2">Saisissez ci-dessous le code à 6 chiffres affiché par l'application.</li>
+    </ol>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <label class="form-label" for="{{ form.token.id_for_label }}">{{ form.token.label }}</label>
+      {{ form.token }}
+      {% for err in form.token.errors %}<div class="text-danger small mt-1">{{ err }}</div>{% endfor %}
+      <button class="btn btn-primary w-100 btn-lg mt-3" type="submit">Activer et continuer</button>
+    </form>
+    <p class="small text-muted mt-3 mb-0">À chaque connexion, ce code vous sera demandé en plus de votre mot de passe.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Nouveau contact{% endblock %}
+{% block page_title %}Nouveau contact{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Choisissez le type de fiche : chaque profil a son propre jeu de champs.</p>{% endblock %}
+{% block content %}
+<div class="row g-3" style="max-width:900px">
+  <div class="col-md-4">
+    <a class="card h-100 text-decoration-none" href="?profile=MINEUR">
+      <div class="card-body">
+        <div class="stat-icon mb-3"><i class="bi bi-person-badge"></i></div>
+        <h5 class="card-title">Mineur</h5>
+        <p class="text-muted small mb-0">Élève de moins de 18 ans, avec les coordonnées du ou des responsables légaux (téléphones et emails des parents).</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a class="card h-100 text-decoration-none" href="?profile=MAJEUR">
+      <div class="card-body">
+        <div class="stat-icon mb-3"><i class="bi bi-person"></i></div>
+        <h5 class="card-title">Majeur</h5>
+        <p class="text-muted small mb-0">Adulte autonome, responsable de ses informations. Email principal + email alternatif.</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a class="card h-100 text-decoration-none" href="?profile=ESSAI">
+      <div class="card-body">
+        <div class="stat-icon warning mb-3"><i class="bi bi-hourglass"></i></div>
+        <h5 class="card-title">Cours d'essai</h5>
+        <p class="text-muted small mb-0">Fiche allégée (pas d'AVS, licence, latéralité ni catégorie). Statut figé sur « Essai ». En cas d'essai concluant, une nouvelle fiche définitive est créée.</p>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cefdesk",
+      "runtimeExecutable": ".venv/Scripts/python",
+      "runtimeArgs": ["manage.py", "runserver", "127.0.0.1:8000"],
+      "port": 8000
+    }
+  ]
+}

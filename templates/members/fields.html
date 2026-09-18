@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Champs de la fiche{% endblock %}
+{% block page_title %}Champs de la fiche membre{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Ajoutez vos propres champs sans toucher au code. Ils apparaissent sur les fiches, dans les colonnes, filtres, exports et l'éditeur de formulaires.</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'members:list' %}"><i class="bi bi-arrow-left"></i> Contacts</a>{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header">Champs personnalisés</div>
+      <div class="table-responsive"><table class="table table-hover">
+        <thead><tr><th>Libellé</th><th>Type</th><th>Profils</th><th>Sensible</th><th>Actif</th><th></th></tr></thead>
+        <tbody>
+        {% for d in custom %}
+        <tr>
+          <td class="fw-semibold">{{ d.label }}<br><code class="small text-muted">{{ d.key }}</code></td>
+          <td>{{ d.get_field_type_display }}</td>
+          <td class="small">{{ d.profiles|join:", "|default:"Tous" }}</td>
+          <td>{% if d.is_sensitive %}<i class="bi bi-shield-lock text-warning"></i>{% endif %}</td>
+          <td>{% if d.is_active %}<i class="bi bi-check-lg text-success"></i>{% else %}<span class="text-muted">non</span>{% endif %}</td>
+          <td class="text-end text-nowrap"><a class="btn btn-sm btn-link" href="{% url 'members:field_edit' d.pk %}"><i class="bi bi-pencil"></i></a>
+            <form method="post" action="{% url 'members:field_delete' d.pk %}" class="d-inline" data-confirm="Supprimer le champ « {{ d.label }} » ?">{% csrf_token %}<button class="btn btn-sm btn-link text-danger"><i class="bi bi-trash"></i></button></form></td>
+        </tr>
+        {% empty %}<tr><td colspan="6"><div class="empty-state py-3">Aucun champ personnalisé pour l'instant.</div></td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="card-header">Champs natifs <span class="small text-muted fw-normal">— structure de base, non modifiable</span></div>
+      <div class="table-responsive"><table class="table table-sm">
+        <thead><tr><th>Libellé</th><th>Type</th><th>Profils</th><th>Sensible</th></tr></thead>
+        <tbody>
+        {% for d in builtin %}
+        <tr><td>{{ d.label }}</td><td class="small text-muted">{{ d.get_field_type_display }}</td><td class="small text-muted">{{ d.profiles|join:", " }}</td>
+          <td>{% if d.key == 'avs_number' %}<i class="bi bi-shield-lock text-warning" title="Toujours sensible"></i>{% else %}<form method="post" action="{% url 'members:field_toggle_sensitive' d.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-link btn-sm p-0" title="Basculer">{% if d.is_sensitive %}<i class="bi bi-shield-lock text-warning"></i>{% else %}<i class="bi bi-shield text-muted"></i>{% endif %}</button></form>{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">Ajouter un champ</div>
+      <div class="card-body"><form method="post" novalidate>{% csrf_token %}{{ form|crispy }}<button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Ajouter le champ</button></form></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

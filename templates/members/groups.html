@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Groupes{% endblock %}
+{% block page_title %}Groupes de contacts{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Un groupe par cours, plus Essais, Comité, et tout groupe ad hoc (sponsors…). Un contact peut appartenir à plusieurs groupes.</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'members:list' %}"><i class="bi bi-arrow-left"></i> Contacts</a>{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="table-responsive"><table class="table table-hover">
+        <thead><tr><th>Nom</th><th>Description</th><th>Cours</th><th class="text-end">Contacts</th><th></th></tr></thead>
+        <tbody>
+        {% for g in groups %}
+        <tr>
+          <td class="fw-semibold"><a href="{% url 'members:list' %}?group={{ g.pk }}">{{ g.name }}</a></td>
+          <td class="text-muted">{{ g.description }}</td>
+          <td>{% if g.is_course %}<i class="bi bi-check-lg text-success"></i>{% endif %}</td>
+          <td class="text-end">{{ g.n }}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-link" href="{% url 'members:group_edit' g.pk %}"><i class="bi bi-pencil"></i></a>
+            <form method="post" action="{% url 'members:group_delete' g.pk %}" class="d-inline" data-confirm="Supprimer le groupe « {{ g.name }} » ? Les contacts sont conservés."> {% csrf_token %}<button class="btn btn-sm btn-link text-danger"><i class="bi bi-trash"></i></button></form>
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="5"><div class="empty-state">Aucun groupe.</div></td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">Nouveau groupe</div>
+      <div class="card-body"><form method="post" novalidate>{% csrf_token %}{{ form|crispy }}<button class="btn btn-primary" type="submit">Créer</button></form></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

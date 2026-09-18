@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}Contacts{% endblock %}
+{% block page_title %}Contacts{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">{{ count }} contact{{ count|pluralize }} affiché{{ count|pluralize }}{% if group %} · groupe « {{ group.name }} »{% endif %}{% if saved_view %} · vue « {{ saved_view.name }} »{% endif %}</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'members:import' %}"><i class="bi bi-upload"></i> Importer</a>
+<a class="btn btn-outline-secondary" href="{% url 'members:groups' %}"><i class="bi bi-collection"></i> Groupes</a>
+<a class="btn btn-outline-secondary" href="{% url 'members:fields' %}"><i class="bi bi-input-cursor-text"></i> Champs</a>
+<a class="btn btn-primary" href="{% url 'members:create' %}"><i class="bi bi-person-plus"></i> Nouveau contact</a>
+{% endblock %}
+{% block content %}
+<div class="contacts-layout">
+  <aside>
+    <div class="card mb-3">
+      <div class="card-body p-2">
+        <div class="section-title mt-1 px-2">Catégories</div>
+        <ul class="side-list">
+          {% for code, label in categories %}
+          <li><a class="{% if cat == code and not group %}active{% endif %}" href="?cat={{ code }}">{{ label }} <span class="count">{% for k, v in cat_counts.items %}{% if k == code %}{{ v }}{% endif %}{% endfor %}</span></a></li>
+          {% endfor %}
+        </ul>
+        <div class="section-title px-2 d-flex justify-content-between align-items-center">Groupes <a class="text-decoration-none" href="{% url 'members:groups' %}" title="Gérer les groupes"><i class="bi bi-gear"></i></a></div>
+        <ul class="side-list">
+          {% for g in groups %}
+          <li><a class="{% if group and group.pk == g.pk %}active{% endif %}" href="?group={{ g.pk }}">{% if g.is_course %}<i class="bi bi-calendar3 me-1 text-muted"></i>{% endif %}{{ g.name }} <span class="count">{{ g.n }}</span></a></li>
+          {% empty %}
+          <li class="px-2 small text-muted">Aucun groupe.</li>
+          {% endfor %}
+        </ul>
+        {% if saved_views %}
+        <div class="section-title px-2">Vues enregistrées</div>
+        <ul class="side-list">
+          {% for v in saved_views %}
+          <li><a class="{% if saved_view and saved_view.pk == v.pk %}active{% endif %}" href="?view={{ v.pk }}"><span><i class="bi bi-bookmark me-1 text-muted"></i>{{ v.name }}</span>
+            <form method="post" action="{% url 'members:delete_view' v.pk %}" class="d-inline" data-confirm="Supprimer la vue « {{ v.name }} » ?">{% csrf_token %}<button class="btn btn-link btn-sm p-0 text-muted" title="Supprimer"><i class="bi bi-x"></i></button></form></a></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    </div>
+  </aside>
+
+  <section>
+    <div class="card">
+      <div class="card-body pb-2">
+        <form method="get" class="row g-2 align-items-center">
+          <input type="hidden" name="cat" value="{{ cat }}">
+          {% if group %}<input type="hidden" name="group" value="{{ group.pk }}">{% endif %}
+          {% for f in filters %}<input type="hidden" name="f" value="{{ f.key }}:{{ f.op }}:{{ f.value }}">{% endfor %}
+          <div class="col-lg-5 col-md-12">
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input class="form-control" type="search" name="q" value="{{ query }}" placeholder="Rechercher un nom, un ID, un email, une ville…">
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-5">
+            <select class="form-select" name="status" onchange="this.form.submit()">
+              <option value="">Tous les statuts</option>
+              {% for code, label in status_choices %}<option value="{{ code }}" {% if status == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-lg-4 col-md-7 d-flex gap-2 justify-content-end flex-wrap">
+            <button class="btn btn-outline-secondary text-nowrap" type="button" data-bs-toggle="collapse" data-bs-target="#filterBuilder"><i class="bi bi-funnel"></i> Filtre</button>
+            <button class="btn btn-outline-secondary text-nowrap" type="button" data-bs-toggle="modal" data-bs-target="#columnsModal"><i class="bi bi-layout-three-columns"></i> Colonnes</button>
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#saveViewModal" title="Enregistrer cette vue"><i class="bi bi-bookmark-plus"></i></button>
+          </div>
+        </form>
+
+        <div class="collapse mt-2 {% if not filters %}{% else %}show{% endif %}" id="filterBuilder">
+          <div class="p-3 bg-light rounded-3">
+            {% if filter_descriptions %}
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              {% for raw, desc in filter_descriptions %}
+              <span class="badge bg-primary-subtle text-primary fw-normal d-inline-flex align-items-center gap-1" style="font-size:.85rem">{{ desc }}
+                <a class="text-primary" href="?cat={{ cat }}{% if group %}&group={{ group.pk }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}{% for r, d in filter_descriptions %}{% if r != raw %}&f={{ r|urlencode }}{% endif %}{% endfor %}" title="Retirer"><i class="bi bi-x-circle"></i></a></span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            <form method="get" class="row g-2 align-items-end" id="addFilterForm">
+              <input type="hidden" name="cat" value="{{ cat }}">
+              {% if group %}<input type="hidden" name="group" value="{{ group.pk }}">{% endif %}
+              {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+              {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+              {% for f in filters %}<input type="hidden" name="f" value="{{ f.key }}:{{ f.op }}:{{ f.value }}">{% endfor %}
+              <div class="col-md-4">
+                <label class="form-label mb-1">Champ</label>
+                <select class="form-select form-select-sm" id="flt-key">
+                  {% for ff in filterable_fields %}<option value="{{ ff.key }}" data-choices="{{ ff.choices|join:'|' }}" data-type="{{ ff.type }}">{{ ff.label }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label mb-1">Condition</label>
+                <select class="form-select form-select-sm" id="flt-op">
+                  {% for code, label in operators %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label mb-1">Valeur</label>
+                <input class="form-control form-control-sm" id="flt-value" list="flt-datalist" placeholder="Valeur…">
+                <datalist id="flt-datalist"></datalist>
+              </div>
+              <div class="col-md-2">
+                <input type="hidden" name="f" id="flt-hidden" disabled>
+                <button class="btn btn-primary btn-sm w-100" type="submit">Ajouter</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <form method="post" action="{% url 'members:mass_edit' %}" id="massForm">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top border-bottom bg-light small">
+          <div><span data-selection-count>0</span> sélectionné(s)</div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-needs-selection data-bs-toggle="modal" data-bs-target="#massModal"><i class="bi bi-pencil-square"></i> Modification de masse</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-needs-selection data-bs-toggle="modal" data-bs-target="#exportModal"><i class="bi bi-download"></i> Exporter</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover table-clickable">
+            <thead>
+              <tr>
+                <th style="width:32px"><input class="form-check-input" type="checkbox" data-check-all="input.row-check" aria-label="Tout sélectionner"></th>
+                {% for key, label in column_headers %}<th>{{ label }}</th>{% endfor %}
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m, cells in rows %}
+              <tr data-href="{% url 'members:detail' m.pk %}">
+                <td><input class="form-check-input row-check" type="checkbox" name="ids" value="{{ m.pk }}" aria-label="Sélectionner"></td>
+                {% for c in cells %}<td>{{ c }}</td>{% endfor %}
+                <td><span class="badge-status status-{{ m.status }}">{{ m.get_status_display }}</span></td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="{{ column_headers|length|add:2 }}"><div class="empty-state"><i class="bi bi-people"></i>Aucun contact ne correspond.</div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Modale : modification de masse -->
+        <div class="modal fade" id="massModal" tabindex="-1">
+          <div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Modification de masse</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+              <p class="small text-muted">Appliquée à <strong data-selection-count>0</strong> contact(s) sélectionné(s).</p>
+              <input type="hidden" name="ids" id="mass-ids">
+              <div class="mb-3"><label class="form-label">Action</label>{{ mass_form.action }}</div>
+              <div class="mb-3 mass-opt" data-for="status"><label class="form-label">Statut</label>{{ mass_form.status }}</div>
+              <div class="mb-3 mass-opt" data-for="add_group remove_group"><label class="form-label">Groupe</label>{{ mass_form.group }}</div>
+              <div class="mb-3 mass-opt" data-for="training_mode"><label class="form-label">Modalité</label>{{ mass_form.training_mode }}</div>
+              <div class="mb-3 mass-opt" data-for="tariff_bracket"><label class="form-label">Tranche tarifaire</label>{{ mass_form.tariff_bracket }}</div>
+              <div class="mb-3 mass-opt" data-for="exit_date"><label class="form-label">Date de sortie</label>{{ mass_form.exit_date }}</div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Annuler</button><button class="btn btn-primary" type="submit">Appliquer</button></div>
+          </div></div>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+
+<!-- Modale : colonnes -->
+<div class="modal fade" id="columnsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="post" action="{% url 'members:save_columns' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <div class="modal-header"><h5 class="modal-title">Colonnes affichées</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p class="small text-muted">Cochez les champs à afficher et glissez-les pour changer l'ordre. Les données sensibles (N° AVS) restent masquées dans les listes.</p>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="section-title mt-0">Colonnes sélectionnées (dans l'ordre)</div>
+            <ul class="list-group" id="col-selected">
+              {% for key, label in column_headers %}
+              <li class="list-group-item d-flex align-items-center gap-2" draggable="true" data-key="{{ key }}"><i class="bi bi-grip-vertical drag-handle"></i><span class="flex-grow-1">{{ label }}</span><button type="button" class="btn btn-sm btn-link text-muted p-0 col-remove"><i class="bi bi-x-lg"></i></button><input type="hidden" name="columns" value="{{ key }}"></li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <div class="section-title mt-0">Champs disponibles</div>
+            <input class="form-control form-control-sm mb-2" id="col-search" placeholder="Filtrer…">
+            <div class="list-group" id="col-available" style="max-height:340px;overflow:auto">
+              {% for d in all_fields %}
+              <button type="button" class="list-group-item list-group-item-action py-1 col-add {% if d.key in columns %}d-none{% endif %}" data-key="{{ d.key }}" data-label="{{ d.label }}">{{ d.label }}{% if d.is_sensitive %} <i class="bi bi-shield-lock text-muted" title="Donnée sensible : affichée masquée"></i>{% endif %}{% if not d.is_builtin %} <span class="badge text-bg-light">perso</span>{% endif %}</button>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Annuler</button><button class="btn btn-primary" type="submit">Enregistrer</button></div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Modale : enregistrer la vue -->
+<div class="modal fade" id="saveViewModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="{% url 'members:save_view' %}">
+      {% csrf_token %}
+      <input type="hidden" name="cat" value="{{ cat }}">
+      {% if group %}<input type="hidden" name="group" value="{{ group.pk }}">{% endif %}
+      {% for f in filters %}<input type="hidden" name="f" value="{{ f.key }}:{{ f.op }}:{{ f.value }}">{% endfor %}
+      <div class="modal-header"><h5 class="modal-title">Enregistrer cette vue</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p class="small text-muted">Mémorise la catégorie/le groupe, les filtres actifs et vos colonnes actuelles, pour tout le comité.</p>
+        <label class="form-label">Nom de la vue</label>
+        <input class="form-control" name="name" required placeholder="Ex. Factures impayées cours du lundi">
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Annuler</button><button class="btn btn-primary" type="submit">Enregistrer</button></div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Modale : export -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="post" action="{% url 'exports:members' %}" id="exportForm">
+      {% csrf_token %}
+      <input type="hidden" name="ids" id="export-ids">
+      <div class="modal-header"><h5 class="modal-title">Exporter les contacts sélectionnés</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p class="small text-muted"><strong data-selection-count>0</strong> contact(s) sélectionné(s).</p>
+        <div class="section-title mt-0">Colonnes à inclure</div>
+        <div class="form-check"><input class="form-check-input" type="radio" name="column_mode" value="all" id="cm-all" checked><label class="form-check-label" for="cm-all">Toutes les colonnes</label></div>
+        <div class="form-check"><input class="form-check-input" type="radio" name="column_mode" value="filled" id="cm-filled"><label class="form-check-label" for="cm-filled">Colonnes remplies (au moins une valeur parmi la sélection)</label></div>
+        <div class="form-check"><input class="form-check-input" type="radio" name="column_mode" value="custom" id="cm-custom"><label class="form-check-label" for="cm-custom">Colonnes à choix</label></div>
+        <div class="dropdown mt-2 ms-4" id="export-cols-wrap" style="display:none">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">Choisir les colonnes</button>
+          <div class="dropdown-menu p-3" style="max-height:300px;overflow:auto;min-width:320px">
+            {% for d in all_fields %}
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="columns" value="{{ d.key }}" id="ec-{{ d.key }}" {% if d.key in columns and not d.is_sensitive %}checked{% endif %}><label class="form-check-label" for="ec-{{ d.key }}">{{ d.label }}{% if d.is_sensitive %} <i class="bi bi-shield-lock text-muted"></i>{% endif %}</label></div>
+            {% endfor %}
+          </div>
+        </div>
+        <p class="small text-muted mt-2 mb-0"><i class="bi bi-shield-lock"></i> Le N° AVS n'est jamais exporté sauf si vous cochez explicitement sa colonne (mode « à choix »).</p>
+        <div class="section-title">Format</div>
+        <div class="form-check"><input class="form-check-input" type="radio" name="variant" value="excel" id="v-excel" checked><label class="form-check-label" for="v-excel">CSV Excel — Windows / iOS / Android <span class="text-muted small">(UTF-8 avec BOM, séparateur « ; », fins de ligne Windows)</span></label></div>
+        <div class="form-check"><input class="form-check-input" type="radio" name="variant" value="macos" id="v-macos"><label class="form-check-label" for="v-macos">CSV macOS <span class="text-muted small">(UTF-8, séparateur « ; », fins de ligne Unix)</span></label></div>
+        <div class="form-check"><input class="form-check-input" type="radio" name="variant" value="numbers" id="v-numbers"><label class="form-check-label" for="v-numbers">CSV Numbers <span class="text-muted small">(UTF-8, séparateur « , », fins de ligne Unix)</span></label></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Annuler</button><button class="btn btn-primary" type="submit"><i class="bi bi-download"></i> Télécharger</button></div>
+    </form>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // --- Constructeur de filtres ---
+  var key = document.getElementById("flt-key"), op = document.getElementById("flt-op"),
+      val = document.getElementById("flt-value"), hidden = document.getElementById("flt-hidden"),
+      dl = document.getElementById("flt-datalist"), form = document.getElementById("addFilterForm");
+  function refreshChoices() {
+    var opt = key.options[key.selectedIndex]; dl.innerHTML = "";
+    (opt.dataset.choices || "").split("|").filter(Boolean).forEach(function (c) { var o = document.createElement("option"); o.value = c; dl.appendChild(o); });
+    if (opt.dataset.type === "DATE") { val.placeholder = "AAAA-MM-JJ"; } else { val.placeholder = "Valeur…"; }
+  }
+  if (key) { key.addEventListener("change", refreshChoices); refreshChoices();
+    form.addEventListener("submit", function () { hidden.disabled = false; hidden.value = key.value + ":" + op.value + ":" + val.value; }); }
+
+  // --- Sélection -> champs cachés des modales ---
+  function ids() { return Array.from(document.querySelectorAll("input.row-check:checked")).map(function (b) { return b.value; }).join(","); }
+  document.addEventListener("cef:selection-changed", function () {
+    var m = document.getElementById("mass-ids"), e = document.getElementById("export-ids");
+    if (m) m.value = ids(); if (e) e.value = ids();
+  });
+
+  // --- Modification de masse : afficher la bonne option ---
+  var action = document.querySelector("#massModal select[name=action]");
+  function showOpt() { document.querySelectorAll(".mass-opt").forEach(function (el) { el.style.display = el.dataset.for.split(" ").indexOf(action.value) >= 0 ? "" : "none"; }); }
+  if (action) { action.addEventListener("change", showOpt); showOpt(); }
+
+  // --- Export : colonnes à choix ---
+  document.querySelectorAll("input[name=column_mode]").forEach(function (r) { r.addEventListener("change", function () {
+    document.getElementById("export-cols-wrap").style.display = r.value === "custom" && r.checked ? "" : "none"; }); });
+
+  // --- Colonnes : ajout / retrait / réordonnancement ---
+  var selected = document.getElementById("col-selected");
+  function makeItem(k, label) {
+    var li = document.createElement("li"); li.className = "list-group-item d-flex align-items-center gap-2"; li.draggable = true; li.dataset.key = k;
+    li.innerHTML = '<i class="bi bi-grip-vertical drag-handle"></i><span class="flex-grow-1">' + label + '</span><button type="button" class="btn btn-sm btn-link text-muted p-0 col-remove"><i class="bi bi-x-lg"></i></button><input type="hidden" name="columns" value="' + k + '">';
+    bindItem(li); return li;
+  }
+  function bindItem(li) {
+    li.querySelector(".col-remove").addEventListener("click", function () {
+      var av = document.querySelector('.col-add[data-key="' + li.dataset.key + '"]'); if (av) av.classList.remove("d-none"); li.remove();
+    });
+    li.addEventListener("dragstart", function () { li.classList.add("opacity-50"); dragging = li; });
+    li.addEventListener("dragend", function () { li.classList.remove("opacity-50"); dragging = null; });
+  }
+  var dragging = null;
+  if (selected) {
+    selected.querySelectorAll("li").forEach(bindItem);
+    selected.addEventListener("dragover", function (e) {
+      e.preventDefault(); var after = Array.from(selected.children).find(function (c) { return c !== dragging && e.clientY < c.getBoundingClientRect().top + c.offsetHeight / 2; });
+      if (dragging) { if (after) selected.insertBefore(dragging, after); else selected.appendChild(dragging); }
+    });
+    document.querySelectorAll(".col-add").forEach(function (b) { b.addEventListener("click", function () { selected.appendChild(makeItem(b.dataset.key, b.dataset.label)); b.classList.add("d-none"); }); });
+    document.getElementById("col-search").addEventListener("input", function (e) {
+      var q = e.target.value.toLowerCase(); document.querySelectorAll(".col-add").forEach(function (b) { if (!b.classList.contains("d-none") || q) b.style.display = b.dataset.label.toLowerCase().indexOf(q) >= 0 ? "" : "none"; });
+    });
+  }
+})();
+</script>
+{% endblock %}
