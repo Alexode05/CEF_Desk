@@ -16,7 +16,7 @@ Si une décision de conception change en cours de développement, mettre à jour
 
 *(Section à tenir à jour à la fin de chaque session de travail significative.)*
 
-**Dernière mise à jour : 19 septembre 2026.** Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
+**Dernière mise à jour : 19 septembre 2026** (code poussé sur GitHub `Alexode05/CEF_Desk`, branche `main`). Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
 
 Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (21 tests, verts).
 
@@ -88,3 +88,4 @@ Ce projet traite des données personnelles sensibles, y compris de mineurs, et d
 - Mettre à jour la section "État d'avancement" ci-dessus à la fin de chaque session de travail significative (modules terminés, en cours, bugs connus).
 - Ne jamais prendre une décision de conception qui contredit le cahier des charges sans le signaler explicitement à Alex — poser la question plutôt que de trancher seul sur un point métier (barèmes, règles de validation, etc.).
 - Le développement se fait en local jusqu'à nouvel ordre (pas d'hébergement souscrit) — cf. section 11 du cahier des charges pour le séquencement prévu.
+- **Committer et pousser régulièrement** : un commit par étape cohérente (module, correctif, mise à jour de doc), avec un message en français décrivant le *pourquoi*, puis `git push origin main` dès que l'étape est vérifiée (tests verts, page testée). Ne jamais terminer une session avec du travail non committé ou non poussé — le dépôt GitHub (`Alexode05/CEF_Desk`) est la sauvegarde de référence du code. Ne jamais committer `.env`, `db.sqlite3`, `media/`, `backups/` (déjà dans `.gitignore`).
