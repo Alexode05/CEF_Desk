@@ -49,6 +49,7 @@ Reprend les grandes sections de ClubDesk, avec un périmètre ajusté :
 - Une **page de connexion** est nécessaire pour accéder à l'interface de gestion (rien d'accessible sans être connecté, en dehors des formulaires publics, section 7).
 - Cette page permet aussi bien la **création de nouveaux comptes** (pour ajouter un membre du comité) que la **connexion** avec un compte existant.
 - **Authentification à deux facteurs (A2F) mise en place** dès la V1 (et non simplement "recommandée" — cf. section 11 "Exigences de sécurité", mis à jour en conséquence) : à l'inscription/première connexion, le compte doit configurer l'A2F (ex. application d'authentification type Google Authenticator/Authy — TOTP), puis la saisir à chaque connexion en plus du mot de passe.
+- **Décision d'implémentation (19.09.2026, à confirmer par Alex) :** la création de compte depuis la page de connexion est protégée par un **code d'invitation** du comité (variable d'environnement `CEF_REGISTRATION_CODE`), pour qu'une personne extérieure ne puisse pas créer un compte. Code vide = création de compte désactivée.
 
 **Style visuel :**
 - Rendu **professionnel** (sobre, soigné — cohérent avec le fait que certains documents générés, comme les factures, sont envoyés directement aux membres, section 5).
@@ -162,6 +163,8 @@ L'agencement général de la fiche (onglets "Générales" / "Finance", dispositi
 
 Champs calculés/automatiques à implémenter : génération de l'ID (`prenom.nom`, avec gestion des doublons homonymes à prévoir), calcul de la catégorie d'âge à partir de la date de naissance pour les profils Mineur/Majeur (à revoir chaque saison, puisque l'âge change).
 
+**Implémenté (19.09.2026) :** ID = `prenom.nom` en minuscules sans accents, homonymes suffixés `prenom.nom2`, `prenom.nom3`… Catégorie = âge atteint dans l'année civile de **fin de saison** (saison démarrant au mois configuré dans Paramètres du club, septembre par défaut) : U8 (<8), U10 (<10), U12 (<12), U14 (<14), U17 (<17), U20 (<20), Sénior (20-39), Vétéran (≥40). **À confirmer avec Alex** par rapport au règlement Swiss Fencing. Les catégories fixes de la liste sont définies ainsi : Personnes = tous les contacts non-entreprises ; Membres = statut Actif, Licence uniquement ou Essai ; Non-membres = autres statuts (en attente, inactif/sorti) ; Entreprises = contacts de type entreprise (sponsors…). Un statut « En attente de validation » et un statut « Inactif / sorti » ont été ajoutés à la liste Actif / Licence uniquement / Essai pour couvrir le flux d'inscription et les départs.
+
 **Décision — passage d'un profil à l'autre :**
 - **Essai → Mineur/Majeur** (essai concluant) : la personne remplit le formulaire d'inscription définitive ; sa fiche "Essai" est **supprimée** et une nouvelle fiche est créée de zéro à partir de cette nouvelle soumission (pas de fusion/migration de données).
 - **Mineur → Majeur** (passage à la majorité) : **on ne change rien à la fiche.** Elle garde son jeu de champs "Mineur" (y compris les contacts parents) tel quel ; pas de conversion automatique de la structure de champs à 18 ans. Seule la Catégorie (U8/U10/.../Sénior) continue d'être recalculée automatiquement selon l'âge.
@@ -247,6 +250,8 @@ Cette section est écrite pour être directement exploitable au moment de coder 
 
 **Vérification qualité :** avant de considérer le module terminé, valider un exemplaire de facture générée avec l'outil de validation en ligne officiel de SIX pour les QR-factures, afin de confirmer sa conformité totale à la norme (et pas seulement une conformité visuelle approximative).
 
+*État (19.09.2026) :* le portail SIX (https://validation.iso-payments.ch) exige un compte utilisateur — **à faire par Alex** avec le fichier `docs/exemples/exemple-qr-facture.pdf`. Un contrôle automatique local (`python manage.py check_qrbill`) décode le QR code du PDF réellement généré et vérifie son contenu contre les directives (version 2.3 : adresses structurées obligatoires, référence QR/SCOR valide, taille 46 mm et position du QR) ; il passe. Référence de paiement : référence QR (27 chiffres, chiffre de contrôle calculé par `python-stdnum`) avec un QR-IBAN, référence SCOR ISO 11649 avec un IBAN classique — détection automatique selon l'IBAN saisi dans Paramètres du club.
+
 **Archivage automatique :** chaque facture générée est produite en **PDF** et une **copie est automatiquement déposée dans l'espace de stockage de fichiers** (section 6), dans un sous-dossier dédié (ex. `Club/Factures/2026-2027/...`), pour garder une trace consultable de toutes les factures émises — sur le même principe que l'archivage prévu pour les soumissions de formulaire (section 6).
 
 ### Barème des cotisations
@@ -267,6 +272,8 @@ Soit une grille de 3 × 4 = 12 tarifs à définir (montants pas encore fixés �
 
 **Décision :** relance automatique envoyée si une facture n'a pas été payée **1 mois après sa date d'édition**. (À affiner : un seul niveau de relance pour l'instant, ou plusieurs relances espacées comme évoqué dans les logiciels concurrents ? — cf. points ouverts.)
 
+*Implémenté (19.09.2026) :* un seul niveau de relance, **répété tous les 30 jours** (délai réglable dans Paramètres du club) tant que la facture reste impayée, uniquement pour les factures déjà envoyées. Envoi par la commande planifiée `send_reminders` ou par le bouton « Envoyer » du module Comptabilité. Le trésorier est en Cc des relances comme des factures. Texte de relance modifiable dans Paramètres du club.
+
 ### Périmètre de la comptabilité
 
 **Décision :** pour la V1, le module Comptabilité se limite **uniquement aux cotisations** (facturation, suivi, relances). Pas d'autres types de recettes/dépenses du club pour l'instant.
@@ -286,7 +293,7 @@ Soit une grille de 3 × 4 = 12 tarifs à définir (montants pas encore fixés �
 ### Pour la V1
 - Reproduire cet explorateur simple (dossiers/sous-dossiers, upload, téléchargement, suppression, renommage).
 - Garder au minimum les 3 dossiers Club / Direction / Public, avec la possibilité d'en créer d'autres.
-- Question ouverte : une fois que les inscriptions passeront par le nouveau formulaire → fiche contact automatique (section 4), a-t-on encore besoin qu'un fichier "formulaire rempli" soit déposé ici, ou la fiche contact suffit-elle ? À trancher — on peut par exemple garder un export PDF automatique de chaque soumission déposé dans un sous-dossier dédié, pour garder une trace telle que remplie par la personne.
+- Question ouverte : une fois que les inscriptions passeront par le nouveau formulaire → fiche contact automatique (section 4), a-t-on encore besoin qu'un fichier "formulaire rempli" soit déposé ici, ou la fiche contact suffit-elle ? À trancher — on peut par exemple garder un export PDF automatique de chaque soumission déposé dans un sous-dossier dédié, pour garder une trace telle que remplie par la personne. *Implémenté en attendant (19.09.2026) :* chaque soumission est conservée telle que remplie dans le module Formulaires → « Soumissions reçues » (toutes les réponses), en plus de l'email au secrétariat ; aucun fichier par soumission n'est déposé dans l'explorateur. Les modèles de formulaires y sont en revanche copiés (JSON) dans `Club/Formulaires`.
 - **Décidé :** chaque facture générée (PDF, section 5) est automatiquement archivée ici dans un sous-dossier dédié — voir section 5 "Archivage automatique".
 
 ## 7. Module Formulaires (inscription et autres)
@@ -348,6 +355,8 @@ Ces deux options utilisent la même page publique générée par notre logiciel 
 
 **Décision :** le récapitulatif envoyé par email contient **toutes les réponses** de la soumission (pas un résumé partiel).
 
+*Implémenté (19.09.2026) :* règle de validation ajoutée côté serveur — au moins une adresse email (élève, parent ou alternative) est exigée dans toute soumission comportant un champ email, pour pouvoir envoyer confirmations et factures. Pour un mineur, le téléphone et l'email du parent 1 sont obligatoires par défaut (modifiable dans l'éditeur). Anti-spam : champ piège invisible + rejet des soumissions envoyées moins de 3 secondes après l'affichage.
+
 ### Comparaison avec le fonctionnement de ClubDesk
 
 Pour vérifier que notre approche est réaliste et voir si on peut faire mieux, voici comment ClubDesk gère concrètement ses formulaires (documentation officielle + forum ClubDesk) :
@@ -393,8 +402,8 @@ Tu me laisses proposer la meilleure méthode — voici ce que je recommande, ave
 5. **Décision confirmée :** l'adresse du **trésorier** est mise en **copie (Cc)** sur chaque email d'envoi de facture (individuel comme groupé), sans que ça ne génère de facture supplémentaire pour cette adresse (répond au problème identifié en section 5). L'adresse du trésorier est configurée **une seule fois dans les paramètres du club** (avec les coordonnées bancaires, section 5), pas ressaisie à chaque envoi — cohérent avec le principe d'un point de configuration central.
 
 ### Points encore ouverts
-- Contenu/modèle du texte de l'email d'envoi de facture (fixe, ou personnalisable par le comité à chaque envoi ?).
-- Faut-il pouvoir exclure certains membres d'une liste au moment de l'envoi (sans les retirer du groupe), pour un cas exceptionnel ?
+- Contenu/modèle du texte de l'email d'envoi de facture (fixe, ou personnalisable par le comité à chaque envoi ?). *Implémenté en attendant :* modèle unique modifiable dans Paramètres du club (variables `{prenom}`, `{nom}`, `{saison}`, `{modalite}`, `{montant}`, `{echeance}`, `{numero}`), pas de personnalisation à chaque envoi.
+- Faut-il pouvoir exclure certains membres d'une liste au moment de l'envoi (sans les retirer du groupe), pour un cas exceptionnel ? *Implémenté :* oui — cases à décocher à l'étape d'envoi (factures comme emails groupés), et option « ignorer les membres déjà facturés pour la saison » à la génération.
 
 ## 9. Module Inscriptions
 

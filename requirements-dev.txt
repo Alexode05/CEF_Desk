@@ -1,0 +1,4 @@
+-r requirements.txt
+# Outils de développement / contrôle qualité (non nécessaires en production)
+pymupdf>=1.24
+opencv-python-headless>=4.9

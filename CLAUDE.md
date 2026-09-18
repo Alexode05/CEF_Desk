@@ -14,10 +14,34 @@ Si une décision de conception change en cours de développement, mettre à jour
 
 ## État d'avancement
 
-*(Section à tenir à jour à la fin de chaque session de travail significative — remplacer par l'état réel, ne pas laisser ce paragraphe tel quel une fois du code écrit.)*
+*(Section à tenir à jour à la fin de chaque session de travail significative.)*
 
-- Statut : planification fonctionnelle et technique terminée (cahier des charges finalisé avec Alex). Aucune ligne de code métier écrite pour l'instant.
-- Développement prévu **entièrement en local** pour l'instant — pas d'hébergement souscrit, pas de coordonnées bancaires réelles du club disponibles (utiliser des valeurs placeholder clairement identifiées comme telles). Cf. cahier des charges section 11.
+**Dernière mise à jour : 19 septembre 2026.** Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
+
+Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (21 tests, verts).
+
+| Module | État | Où |
+|---|---|---|
+| Fondations, connexion, création de compte (code d'invitation), **A2F TOTP obligatoire** | Terminé | `apps/accounts` (middleware `LoginAndTwoFactorRequiredMiddleware`) |
+| Tableau de bord (compteurs, factures en attente + prochain rappel, inscriptions à valider, notes, to-do tracée) + **Paramètres du club** (point de configuration unique) | Terminé | `apps/dashboard` |
+| Contacts/Membres : 3 profils, ID `prenom.nom` + homonymes, catégorie d'âge auto, groupes, catégories fixes, recherche, filtres sur tout champ, colonnes personnalisables par utilisateur, vues enregistrées, champs personnalisés depuis l'UI, import CSV, modification de masse, validation d'inscription | Terminé | `apps/members` (`fields.py` = registre des champs partagé avec formulaires/exports) |
+| Comptabilité : barème 3×4, facture PDF (en-tête club + bloc QR-bill `qrbill`), référence QR/SCOR via `python-stdnum`, archivage auto dans Fichiers, envoi email Cc trésorier, lots en 2 étapes, relances à 1 mois (`send_reminders`), pointage manuel « payée » | Terminé (voir point ouvert SIX ci-dessous) | `apps/billing` |
+| Fichiers : dossiers Club/Direction/Public, upload/téléchargement/renommage/suppression | Terminé | `apps/documents` |
+| Formulaires : éditeur structuré adossé aux champs de la fiche, champ « Type d'inscription » Mineur/Majeur, règles conditionnelles, page publique + honeypot + délai minimal, fiche « en attente », email récapitulatif complet au secrétariat, copie JSON du modèle dans Club/Formulaires | Terminé | `apps/formbuilder` |
+| Mailing : listes dynamiques/statiques, email groupé individuel, exclusion ponctuelle, passerelle vers la facturation groupée | Terminé | `apps/mailing` |
+| Export CSV 3 variantes (Excel Windows / macOS / Numbers), AVS exclu sauf choix explicite | Terminé (ouverture réelle dans Excel/Numbers **non testée** — à faire par Alex) | `apps/exports` |
+| Sauvegardes : commande `backup` (BD + media, rétention 30 j) à planifier | Terminé (planification à faire chez l'hébergeur) | `apps/dashboard/management/commands/backup.py` |
+
+**Points à traiter avec Alex (ne pas trancher seul) :**
+- **Validation SIX** : le portail officiel https://validation.iso-payments.ch exige un compte utilisateur → Alex doit s'y inscrire et déposer `docs/exemples/exemple-qr-facture.pdf`. En attendant, `python manage.py check_qrbill` décode le QR du PDF réel et le vérifie contre la norme (passe : adresses structurées obligatoires IG 2.3, référence QR valide, 46 mm, position OK).
+- Montants des 12 tarifs (barème vide → facturation bloquée pour les membres concernés).
+- Règle exacte de calcul des catégories d'âge : implémentée = âge atteint dans l'année civile de fin de saison (saison démarre en septembre, réglable) ; U8 <8, U10 <10, U12 <12, U14 <14, U17 <17, U20 <20, Sénior 20-39, Vétéran ≥40. À confirmer avec le règlement Swiss Fencing.
+- Création de compte comité : protégée par un **code d'invitation** (`CEF_REGISTRATION_CODE` dans `.env`) — décision prise pour éviter une inscription ouverte à tous ; à valider.
+- Un seul niveau de relance (répété tous les 30 jours tant que la facture est impayée) ; le trésorier est en Cc des relances comme des factures.
+- Texte des emails de facture/relance : modifiable dans Paramètres du club (variables `{prenom}`, `{nom}`, `{saison}`, `{montant}`, `{echeance}`, `{numero}`).
+- Ouverture réelle des 3 variantes CSV dans Excel Windows, Numbers et un tableur mobile à tester par Alex.
+
+**Bugs connus / limites :** aucun bug bloquant connu. HTTPS local non activé (réglages HTTPS prêts via `DJANGO_FORCE_HTTPS=True` pour la production). Réinitialisation de l'A2F d'un utilisateur : via l'administration technique `/admin/` (supprimer son appareil TOTP).
 
 ## Stack retenue (cahier des charges section 11)
 
