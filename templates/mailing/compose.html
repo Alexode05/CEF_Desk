@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Email groupé{% endblock %}
+{% block page_title %}Envoyer un email groupé{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Chaque destinataire reçoit un email individuel (les adresses ne sont pas visibles des autres). Prévisualisez avant d'envoyer.</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'mailing:index' %}"><i class="bi bi-arrow-left"></i> Mailing</a>{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-6"><div class="card"><div class="card-body">
+    <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+      {{ form.mailing_list|as_crispy_field }}{{ form.subject|as_crispy_field }}{{ form.body|as_crispy_field }}{{ form.attachment|as_crispy_field }}{{ form.cc_treasurer|as_crispy_field }}
+      <input type="hidden" name="exclude_ids" value="{{ form.exclude_ids.value|default:'' }}">
+      <button class="btn btn-outline-primary" type="submit"><i class="bi bi-eye"></i> Prévisualiser les destinataires</button>
+    </form>
+  </div></div></div>
+  <div class="col-lg-6">
+    {% if preview is not None %}
+    <div class="card">
+      <div class="card-header">{{ preview|length }} destinataire(s)</div>
+      <form method="post" enctype="multipart/form-data">{% csrf_token %}
+        <input type="hidden" name="mailing_list" value="{{ form.mailing_list.value }}">
+        <input type="hidden" name="subject" value="{{ form.subject.value }}">
+        <textarea name="body" hidden>{{ form.body.value }}</textarea>
+        {% if form.cc_treasurer.value %}<input type="hidden" name="cc_treasurer" value="on">{% endif %}
+        <input type="hidden" name="confirm" value="1">
+        <div class="card-body" style="max-height:380px;overflow:auto">
+          <p class="small text-muted">Décochez un destinataire pour l'exclure de cet envoi (sans le retirer de la liste).</p>
+          {% for m, email in preview %}<div class="form-check"><input class="form-check-input recip" type="checkbox" checked data-id="{{ m.pk }}" id="r{{ m.pk }}"><label class="form-check-label" for="r{{ m.pk }}">{{ m.display_name }} <span class="text-muted small">{{ email }}</span></label></div>{% empty %}<p class="text-muted">Aucun destinataire avec une adresse email.</p>{% endfor %}
+        </div>
+        <input type="hidden" name="exclude_ids" id="exclude-ids" value="">
+        <div class="card-footer bg-transparent">
+          {% if form.attachment.value %}<p class="small text-warning mb-2"><i class="bi bi-exclamation-triangle"></i> Re-sélectionnez la pièce jointe ci-dessous (elle ne peut pas être conservée entre les deux étapes).</p><input class="form-control form-control-sm mb-2" type="file" name="attachment">{% else %}<input type="hidden" name="attachment_placeholder">{% endif %}
+          <button class="btn btn-primary" type="submit" {% if not preview %}disabled{% endif %} onclick="return confirm('Envoyer cet email maintenant ?')"><i class="bi bi-send"></i> Envoyer</button>
+        </div>
+      </form>
+    </div>
+    {% else %}
+    <div class="card"><div class="card-body empty-state"><i class="bi bi-envelope-paper"></i>Choisissez une liste, rédigez le message, puis prévisualisez.</div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script>document.addEventListener("change",function(){var ex=[];document.querySelectorAll(".recip").forEach(function(c){if(!c.checked)ex.push(c.dataset.id);});var h=document.getElementById("exclude-ids");if(h)h.value=ex.join(",");});</script>{% endblock %}

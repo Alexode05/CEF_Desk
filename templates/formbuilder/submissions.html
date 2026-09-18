@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Soumissions{% endblock %}
+{% block page_title %}Soumissions reçues{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Trace de chaque formulaire rempli, telle que saisie par la personne. La fiche liée est à valider depuis les Contacts.</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'formbuilder:list' %}"><i class="bi bi-arrow-left"></i> Formulaires</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-body pb-2"><form method="get" class="row g-2"><div class="col-md-4"><select class="form-select" name="form" onchange="this.form.submit()"><option value="">Tous les formulaires</option>{% for f in forms %}<option value="{{ f.pk }}" {% if form_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></div></form></div>
+  <div class="table-responsive"><table class="table table-hover table-clickable">
+    <thead><tr><th>Reçue le</th><th>Formulaire</th><th>Personne</th><th>Profil</th><th>Fiche</th><th>Notification</th></tr></thead>
+    <tbody>
+    {% for s in submissions %}
+    <tr data-href="{% url 'formbuilder:submission_detail' s.pk %}">
+      <td class="text-nowrap">{{ s.submitted_at|date:"d.m.Y H:i" }}</td><td>{{ s.form_name }}</td><td class="fw-semibold">{{ s.summary_name }}</td><td>{{ s.get_profile_display }}</td>
+      <td>{% if s.member %}<a href="{% url 'members:detail' s.member.pk %}">{{ s.member.member_id }}</a> <span class="badge-status status-{{ s.member.status }}">{{ s.member.get_status_display }}</span>{% else %}<span class="text-muted">supprimée</span>{% endif %}</td>
+      <td>{% if s.notified %}<i class="bi bi-check-lg text-success"></i>{% else %}<span class="text-danger small" title="{{ s.notify_error }}">échec</span>{% endif %}</td>
+    </tr>
+    {% empty %}<tr><td colspan="6"><div class="empty-state"><i class="bi bi-inbox"></i>Aucune soumission.</div></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

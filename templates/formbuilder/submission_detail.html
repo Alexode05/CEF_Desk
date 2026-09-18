@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Soumission{% endblock %}
+{% block page_title %}Soumission — {{ sub.summary_name }}{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">{{ sub.form_name }} · reçue le {{ sub.submitted_at|date:"d.m.Y à H:i" }} · profil {{ sub.get_profile_display }}</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'formbuilder:submissions' %}"><i class="bi bi-arrow-left"></i> Soumissions</a>
+{% if sub.member %}<a class="btn btn-primary" href="{% url 'members:detail' sub.member.pk %}"><i class="bi bi-person"></i> Ouvrir la fiche</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="card" style="max-width:760px"><div class="card-body">
+  <dl class="row mb-0">
+    {% for a in sub.data %}<dt class="col-sm-5 text-muted fw-normal small">{{ a.label }}</dt><dd class="col-sm-7">{{ a.value|default:"—" }}</dd>{% endfor %}
+  </dl>
+</div></div>
+{% endblock %}

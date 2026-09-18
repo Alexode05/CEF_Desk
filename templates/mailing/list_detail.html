@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}{{ ml.name }}{% endblock %}
+{% block page_title %}{{ ml.name }}{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">{{ ml.get_kind_display }}{% if ml.group %} · groupe « {{ ml.group.name }} »{% endif %} · {{ members|length }} contact(s), {{ recipients|length }} adresse(s) email distincte(s)</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'mailing:index' %}"><i class="bi bi-arrow-left"></i> Mailing</a>
+<a class="btn btn-outline-primary" href="{% url 'billing:batch_create' %}?list={{ ml.pk }}"><i class="bi bi-receipt"></i> Générer les factures</a>
+<a class="btn btn-primary" href="{% url 'mailing:compose' %}?list={{ ml.pk }}"><i class="bi bi-envelope"></i> Email groupé</a>
+{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">Destinataires</div>
+      <div class="table-responsive"><table class="table table-sm">
+        <thead><tr><th>Contact</th><th>Email utilisé</th><th>Statut</th></tr></thead>
+        <tbody>{% for m in members %}<tr><td><a href="{% url 'members:detail' m.pk %}">{{ m.display_name }}</a></td><td class="small">{{ m.primary_email|default:'<span class="text-danger">aucune</span>' }}</td><td><span class="badge-status status-{{ m.status }}">{{ m.get_status_display }}</span></td></tr>{% empty %}<tr><td colspan="3" class="text-muted">Aucun contact.</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+    {% if all_members %}
+    <div class="card mt-4">
+      <div class="card-header">Choisir les contacts de la liste statique</div>
+      <form method="post" action="{% url 'mailing:list_set_members' ml.pk %}">{% csrf_token %}
+        <div class="card-body" style="max-height:360px;overflow:auto">
+          <input class="form-control form-control-sm mb-2" placeholder="Filtrer…" oninput="var q=this.value.toLowerCase();this.parentNode.querySelectorAll('.form-check').forEach(function(c){c.style.display=c.textContent.toLowerCase().indexOf(q)>=0?'':'none';})">
+          {% for m in all_members %}<div class="form-check"><input class="form-check-input" type="checkbox" name="member_ids" value="{{ m.pk }}" id="mm{{ m.pk }}" {% if m in members %}checked{% endif %}><label class="form-check-label" for="mm{{ m.pk }}">{{ m.display_name }} <span class="text-muted small">{{ m.primary_email }}</span></label></div>{% endfor %}
+        </div>
+        <div class="card-footer bg-transparent"><button class="btn btn-primary btn-sm">Enregistrer la sélection</button></div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  <div class="col-lg-5">
+    <div class="card"><div class="card-header">Paramètres</div><div class="card-body">
+      <form method="post" novalidate>{% csrf_token %}{{ form.name|as_crispy_field }}{{ form.kind|as_crispy_field }}{{ form.group|as_crispy_field }}{{ form.description|as_crispy_field }}<button class="btn btn-outline-primary" type="submit">Enregistrer</button></form>
+      <hr>
+      <form method="post" action="{% url 'mailing:list_delete' ml.pk %}" data-confirm="Supprimer la liste « {{ ml.name }} » ? Les contacts ne sont pas touchés.">{% csrf_token %}<button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Supprimer la liste</button></form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

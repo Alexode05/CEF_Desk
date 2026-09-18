@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Modifier l'élément{% endblock %}
+{% block page_title %}Modifier « {{ ff.effective_label }} »{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Formulaire « {{ ff.form.name }} ». La règle conditionnelle affiche cet élément seulement si la réponse à un autre champ correspond (ex. Type d'inscription = Mineur).</p>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:640px"><div class="card-body">
+  <form method="post" novalidate>{% csrf_token %}
+    {{ form|crispy }}
+    <p class="small text-muted">Pour « Type d'inscription », les valeurs possibles sont <code>MINEUR</code> et <code>MAJEUR</code>. Pour les listes déroulantes, indiquez le code ou le libellé exact de l'option.</p>
+    <button class="btn btn-primary" type="submit">Enregistrer</button> <a class="btn btn-link" href="{% url 'formbuilder:edit' ff.form_id %}">Annuler</a>
+  </form>
+</div></div>
+{% endblock %}

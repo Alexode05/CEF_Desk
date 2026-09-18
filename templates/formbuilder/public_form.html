@@ -1,0 +1,58 @@
+{% extends "base_public.html" %}
+{% load crispy_forms_tags %}
+{% block title %}{{ fd.name }} · {{ club.club_name }}{% endblock %}
+{% block wrap_class %}wide{% endblock %}
+{% block brand_title %}{{ club.club_name }}{% endblock %}
+{% block brand_sub %}{{ fd.name }}{% endblock %}
+{% block content %}
+<h1 class="h4 mb-2">{{ fd.name }}</h1>
+{% if fd.intro_text %}<div class="text-muted mb-4">{{ fd.intro_text|linebreaks }}</div>{% endif %}
+{% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+<form method="post" novalidate id="publicForm">
+  {% csrf_token %}
+  {{ form.ts_token }}
+  <div class="hp-field" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden"><label>Ne pas remplir<input type="text" name="website_url" autocomplete="off" tabindex="-1" value=""></label></div>
+  {% for ff in form.form_fields %}
+    {% if ff.kind == 'TEXT' %}
+      <div class="my-3 p-3 bg-light rounded-3 small" data-field="{{ ff.input_name }}">{{ ff.text|linebreaksbr }}</div>
+    {% else %}
+      <div data-field="{{ ff.input_name }}">
+        {% for bound in form %}{% if bound.name == ff.input_name %}{{ bound|as_crispy_field }}{% endif %}{% endfor %}
+      </div>
+    {% endif %}
+  {% endfor %}
+  <div class="small text-muted border-top pt-3 mt-4">{{ fd.privacy_notice|linebreaksbr }}</div>
+  <button class="btn btn-primary btn-lg w-100 mt-3" type="submit">Envoyer mon inscription</button>
+</form>
+{% endblock %}
+{% block footer %}{{ club.club_name }} · {{ club.street }}, {{ club.postal_code }} {{ club.city }}{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  // Logique conditionnelle côté navigateur (le serveur ré-évalue les mêmes règles).
+  var rules = {{ rules|safe }};
+  var form = document.getElementById("publicForm");
+  function valueOf(name) {
+    var els = form.querySelectorAll('[name="' + name + '"]');
+    var vals = [];
+    els.forEach(function (el) {
+      if ((el.type === "checkbox" || el.type === "radio")) { if (el.checked) vals.push(el.value.toLowerCase()); }
+      else if (el.value) vals.push(el.value.toLowerCase());
+    });
+    return vals;
+  }
+  function apply() {
+    rules.forEach(function (r) {
+      var vals = valueOf(r.source), expected = (r.value || "").toLowerCase(), ok;
+      if (r.op === "notempty") ok = vals.join("").trim() !== "";
+      else if (r.op === "eq") ok = vals.indexOf(expected) >= 0;
+      else if (r.op === "ne") ok = vals.indexOf(expected) < 0;
+      else ok = vals.join(" ").indexOf(expected) >= 0;
+      var box = form.querySelector('[data-field="' + r.target + '"]');
+      if (box) box.style.display = ok ? "" : "none";
+    });
+  }
+  form.addEventListener("change", apply); form.addEventListener("input", apply); apply();
+})();
+</script>
+{% endblock %}

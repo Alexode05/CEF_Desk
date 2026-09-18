@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Lots de factures{% endblock %}
+{% block page_title %}Lots de factures{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'billing:index' %}"><i class="bi bi-arrow-left"></i> Comptabilité</a><a class="btn btn-primary" href="{% url 'billing:batch_create' %}"><i class="bi bi-files"></i> Nouveau lot</a>{% endblock %}
+{% block content %}
+<div class="card"><div class="table-responsive"><table class="table table-hover table-clickable">
+  <thead><tr><th>Lot</th><th>Source</th><th>Saison</th><th>Créé</th><th class="text-end">Factures</th><th class="text-end">Total</th></tr></thead>
+  <tbody>{% for b in batches %}<tr data-href="{% url 'billing:batch_detail' b.pk %}"><td class="fw-semibold">{{ b.label }}</td><td class="text-muted">{{ b.source_description }}</td><td>{{ b.season }}</td><td>{{ b.created_at|date:"d.m.Y H:i" }}{% if b.created_by %} · {{ b.created_by.first_name|default:b.created_by.username }}{% endif %}</td><td class="text-end">{{ b.invoices.count }}</td><td class="text-end">CHF {{ b.total|floatformat:2 }}</td></tr>
+  {% empty %}<tr><td colspan="6"><div class="empty-state"><i class="bi bi-files"></i>Aucun lot.</div></td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Nouvelle facture{% endblock %}
+{% block page_title %}Nouvelle facture — {{ member.display_name }}{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Montant calculé automatiquement depuis la fiche (modalité × tranche, réduction famille).</p>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:640px">
+  <div class="card-body">
+    <dl class="row">
+      <dt class="col-sm-5 text-muted fw-normal">Saison</dt><dd class="col-sm-7">{{ preview.season }}</dd>
+      <dt class="col-sm-5 text-muted fw-normal">Modalité d'entraînement</dt><dd class="col-sm-7">{{ member.training_mode|default:"—" }}</dd>
+      <dt class="col-sm-5 text-muted fw-normal">Tranche tarifaire</dt><dd class="col-sm-7">{{ member.tariff_bracket|default:"—" }}</dd>
+      <dt class="col-sm-5 text-muted fw-normal">Montant de base</dt><dd class="col-sm-7">{% if preview.base is not None %}CHF {{ preview.base|floatformat:2 }}{% else %}<span class="text-danger">non défini</span>{% endif %}</dd>
+      <dt class="col-sm-5 text-muted fw-normal">Réduction famille</dt><dd class="col-sm-7">{% if preview.discount %}- CHF 100.00{% else %}—{% endif %}</dd>
+      <dt class="col-sm-5 text-muted fw-normal">Total</dt><dd class="col-sm-7 fw-bold">{% if preview.amount is not None %}CHF {{ preview.amount|floatformat:2 }}{% else %}—{% endif %}</dd>
+      <dt class="col-sm-5 text-muted fw-normal">Destinataire de l'email</dt><dd class="col-sm-7">{{ preview.email|default:"— (aucune adresse)" }}</dd>
+      <dt class="col-sm-5 text-muted fw-normal">Adresse (débiteur QR)</dt><dd class="col-sm-7">{{ member.address }}, {{ member.postal_code }} {{ member.city }}</dd>
+    </dl>
+    {% if preview.amount is None %}
+    <div class="alert alert-warning">Impossible de générer : complétez la modalité et la tranche tarifaire sur la <a href="{% url 'members:edit' member.pk %}">fiche</a>, ou définissez le tarif dans le <a href="{% url 'billing:tariffs' %}">barème</a>.</div>
+    {% endif %}
+    <form method="post">{% csrf_token %}
+      <button class="btn btn-primary" type="submit" {% if preview.amount is None %}disabled{% endif %}><i class="bi bi-file-earmark-pdf"></i> Générer la facture (PDF + archivage)</button>
+      <a class="btn btn-link" href="{% url 'members:detail' member.pk %}">Annuler</a>
+    </form>
+    <p class="small text-muted mt-3 mb-0">L'envoi par email est une étape séparée, depuis la page de la facture, pour pouvoir la relire avant.</p>
+  </div>
+</div>
+{% endblock %}

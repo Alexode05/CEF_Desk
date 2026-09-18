@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Générer un lot de factures{% endblock %}
+{% block page_title %}Générer un lot de factures <span class="badge text-bg-light align-middle">Étape 1 / 2</span>{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Génération groupée (PDF + archivage) pour un groupe ou une liste. L'envoi par email est l'étape 2, après relecture.</p>{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card"><div class="card-body">
+      <form method="post" novalidate id="batchForm">{% csrf_token %}
+        {{ form|crispy }}
+        {% if form.initial.ids %}<div class="alert alert-info small">Sélection de contacts transmise depuis la liste des contacts.</div>{% endif %}
+        <button class="btn btn-outline-primary" type="submit"><i class="bi bi-eye"></i> Prévisualiser</button>
+      </form>
+    </div></div>
+  </div>
+  <div class="col-lg-7">
+    {% if preview is not None %}
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center"><span>Prévisualisation — {{ preview|length }} membre(s)</span></div>
+      <div class="table-responsive"><table class="table table-sm">
+        <thead><tr><th>Membre</th><th>Modalité</th><th>Tranche</th><th class="text-end">Montant</th><th>Email</th></tr></thead>
+        <tbody>
+        {% for m, amount, email in preview %}
+        <tr class="{% if amount is None %}table-warning{% endif %}"><td><a href="{% url 'members:detail' m.pk %}">{{ m.display_name }}</a>{% if m.family_discount %} <span class="badge text-bg-light">-100 famille</span>{% endif %}</td><td>{{ m.training_mode|default:"—" }}</td><td>{{ m.tariff_bracket|default:"—" }}</td><td class="text-end">{% if amount is not None %}CHF {{ amount|floatformat:2 }}{% else %}<span class="text-danger">à compléter</span>{% endif %}</td><td class="small">{{ email|default:"—" }}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-muted">Aucun membre ne correspond aux critères.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      <div class="card-body">
+        <p class="small text-muted">Les lignes en jaune seront ignorées (montant non calculable : fiche ou barème incomplet).</p>
+        <form method="post">{% csrf_token %}
+          {% for f in form %}{% if f.name != 'csrfmiddlewaretoken' %}<input type="hidden" name="{{ f.name }}" value="{{ f.value|default_if_none:'' }}">{% endif %}{% endfor %}
+          <input type="hidden" name="confirm" value="1">
+          <button class="btn btn-primary" type="submit" {% if not preview %}disabled{% endif %}><i class="bi bi-file-earmark-pdf"></i> Générer les factures (PDF + archivage)</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="card"><div class="card-body empty-state"><i class="bi bi-files"></i>Choisissez une source puis cliquez sur « Prévisualiser » pour vérifier les montants et destinataires avant de générer.</div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

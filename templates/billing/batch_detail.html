@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Lot {{ batch.label }}{% endblock %}
+{% block page_title %}{{ batch.label }} <span class="badge text-bg-light align-middle">Étape 2 / 2 — relecture et envoi</span>{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Saison {{ batch.season }} · {{ invoices|length }} facture(s) · total CHF {{ batch.total|floatformat:2 }} · créé le {{ batch.created_at|date:"d.m.Y H:i" }}{% if batch.source_description %} · source : {{ batch.source_description }}{% endif %}</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'billing:batch_list' %}"><i class="bi bi-arrow-left"></i> Lots</a>{% endblock %}
+{% block content %}
+{% if club.bank_details_are_placeholder %}<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle-fill"></i> Coordonnées bancaires fictives : ne pas envoyer ces factures à de vrais membres.</div>{% endif %}
+<form method="post" action="{% url 'billing:batch_send' batch.pk %}" data-confirm="Envoyer par email les factures sélectionnées (trésorier en copie) ?">
+  {% csrf_token %}
+  <div class="card">
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light small">
+      <div><span data-selection-count>0</span> sélectionnée(s) · {{ to_send }} non envoyée(s)</div>
+      <button class="btn btn-primary btn-sm" type="submit" data-needs-selection><i class="bi bi-send"></i> Envoyer les factures sélectionnées</button>
+    </div>
+    <div class="table-responsive"><table class="table table-hover">
+      <thead><tr><th style="width:32px"><input class="form-check-input" type="checkbox" data-check-all="input.row-check"></th><th>N°</th><th>Membre</th><th>Modalité / tranche</th><th class="text-end">Montant</th><th>Email</th><th>Statut</th><th></th></tr></thead>
+      <tbody>
+      {% for inv in invoices %}
+      <tr>
+        <td>{% if inv.status == 'GENEREE' %}<input class="form-check-input row-check" type="checkbox" name="ids" value="{{ inv.pk }}" checked>{% endif %}</td>
+        <td>{{ inv.number }}</td>
+        <td class="fw-semibold"><a href="{{ inv.get_absolute_url }}">{{ inv.member.display_name }}</a></td>
+        <td class="small">{{ inv.training_mode_label }} / {{ inv.bracket_label }}{% if inv.family_discount %} <span class="badge text-bg-light">-100</span>{% endif %}</td>
+        <td class="text-end">CHF {{ inv.amount|floatformat:2 }}</td>
+        <td class="small">{{ inv.recipient_email|default:'<span class="text-danger">aucune</span>' }}</td>
+        <td><span class="badge-status inv-{{ inv.status }}">{{ inv.get_status_display }}</span></td>
+        <td class="text-end"><a class="btn btn-sm btn-link" href="{% url 'billing:invoice_pdf' inv.pk %}" target="_blank" title="Ouvrir le PDF"><i class="bi bi-file-earmark-pdf"></i></a></td>
+      </tr>
+      {% empty %}<tr><td colspan="8"><div class="empty-state">Aucune facture dans ce lot.</div></td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+</form>
+<p class="small text-muted mt-3"><i class="bi bi-info-circle"></i> Relisez les PDF (icône à droite) avant d'envoyer. Chaque email contient la facture PDF en pièce jointe, avec le trésorier ({{ club.treasurer_email|default:"non configuré" }}) en copie. Les factures déjà envoyées peuvent être renvoyées individuellement depuis leur page.</p>
+{% endblock %}

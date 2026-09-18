@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Mailing{% endblock %}
+{% block page_title %}Mailing groupé{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Listes de diffusion dynamiques (suivent un groupe) ou statiques (sélection figée), emails groupés, et point de départ de la facturation groupée.</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'mailing:list_create' %}"><i class="bi bi-plus-lg"></i> Nouvelle liste</a>
+<a class="btn btn-primary" href="{% url 'mailing:compose' %}"><i class="bi bi-envelope-paper"></i> Envoyer un email groupé</a>
+{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">Listes de diffusion</div>
+      <div class="table-responsive"><table class="table table-hover align-middle">
+        <thead><tr><th>Nom</th><th>Type</th><th class="text-end">Contacts</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+        {% for l in lists %}
+        <tr>
+          <td><a class="fw-semibold" href="{% url 'mailing:list_detail' l.pk %}">{{ l.name }}</a>{% if l.description %}<div class="small text-muted">{{ l.description }}</div>{% endif %}</td>
+          <td class="small">{% if l.kind == 'DYNAMIC' %}<i class="bi bi-arrow-repeat"></i> Dynamique{% if l.group %} · {{ l.group.name }}{% endif %}{% else %}<i class="bi bi-pin"></i> Statique{% endif %}</td>
+          <td class="text-end">{{ l.members.count }}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'mailing:compose' %}?list={{ l.pk }}" title="Email groupé"><i class="bi bi-envelope"></i></a>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'billing:batch_create' %}?list={{ l.pk }}" title="Générer les factures de cette liste"><i class="bi bi-receipt"></i> Factures</a>
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="4"><div class="empty-state"><i class="bi bi-list-ul"></i>Aucune liste. Créez une liste dynamique par groupe de cours, ou une liste statique depuis une sélection de contacts.</div></td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">Derniers envois groupés</div>
+      <ul class="list-group list-group-flush">
+        {% for c in campaigns %}<li class="list-group-item small"><div class="d-flex justify-content-between"><strong>{{ c.subject|truncatechars:60 }}</strong><span class="text-muted">{{ c.sent_at|date:"d.m.Y H:i" }}</span></div><div class="text-muted">{{ c.mailing_list|default:"—" }} · {{ c.recipients_count }} envoyé(s){% if c.errors_count %} · <span class="text-danger">{{ c.errors_count }} échec(s)</span>{% endif %}{% if c.sent_by %} · {{ c.sent_by.first_name|default:c.sent_by.username }}{% endif %}</div></li>
+        {% empty %}<li class="list-group-item small text-muted">Aucun envoi.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

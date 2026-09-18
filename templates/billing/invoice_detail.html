@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Facture {{ invoice.number }}{% endblock %}
+{% block page_title %}Facture {{ invoice.number }} <span class="badge-status inv-{{ invoice.status }} ms-2 align-middle">{{ invoice.get_status_display }}</span>{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle"><a href="{% url 'members:detail' invoice.member.pk %}">{{ invoice.member.display_name }}</a> · saison {{ invoice.season }}{% if invoice.batch %} · lot <a href="{% url 'billing:batch_detail' invoice.batch.pk %}">{{ invoice.batch.label }}</a>{% endif %}</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'billing:invoice_pdf' invoice.pk %}" target="_blank"><i class="bi bi-file-earmark-pdf"></i> Ouvrir le PDF</a>
+{% if invoice.is_unpaid %}
+<form method="post" action="{% url 'billing:invoice_send' invoice.pk %}" data-confirm="Envoyer la facture par email à {{ invoice.recipient_email|default:'(aucune adresse)' }} avec le trésorier en copie ?">{% csrf_token %}<button class="btn btn-primary" type="submit" {% if not invoice.recipient_email %}disabled{% endif %}><i class="bi bi-send"></i> {% if invoice.sent_at %}Renvoyer{% else %}Envoyer{% endif %} par email</button></form>
+{% endif %}
+{% endblock %}
+{% block content %}
+{% if club.bank_details_are_placeholder %}<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle-fill"></i> QR-facture générée avec les coordonnées bancaires fictives de développement.</div>{% endif %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header">Détail</div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4 text-muted fw-normal small">Motif</dt><dd class="col-sm-8">{{ invoice.description }}</dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Modalité / tranche</dt><dd class="col-sm-8">{{ invoice.training_mode_label|default:"—" }} / {{ invoice.bracket_label|default:"—" }}</dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Montant de base</dt><dd class="col-sm-8">CHF {{ invoice.base_amount|floatformat:2 }}</dd>
+          {% if invoice.family_discount %}<dt class="col-sm-4 text-muted fw-normal small">Réduction famille</dt><dd class="col-sm-8">- CHF {{ invoice.family_discount|floatformat:2 }}</dd>{% endif %}
+          <dt class="col-sm-4 text-muted fw-normal small">Total</dt><dd class="col-sm-8 fw-bold">CHF {{ invoice.amount|floatformat:2 }}</dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Émise / échéance</dt><dd class="col-sm-8">{{ invoice.issue_date|date:"d.m.Y" }} / <span class="{% if invoice.is_overdue %}text-danger fw-semibold{% endif %}">{{ invoice.due_date|date:"d.m.Y" }}</span></dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Référence de paiement</dt><dd class="col-sm-8"><code>{{ invoice.reference }}</code></dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Débiteur (QR)</dt><dd class="col-sm-8">{{ invoice.debtor_name }}, {{ invoice.debtor_street }}, {{ invoice.debtor_postal_code }} {{ invoice.debtor_city }}</dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Email destinataire</dt><dd class="col-sm-8">{{ invoice.recipient_email|default:"— (aucune adresse sur la fiche)" }}</dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Envoyée le</dt><dd class="col-sm-8">{{ invoice.sent_at|date:"d.m.Y H:i"|default:"—" }}</dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Relances</dt><dd class="col-sm-8">{{ invoice.reminder_count }}{% if invoice.reminded_at %} (dernière le {{ invoice.reminded_at|date:"d.m.Y" }}){% endif %}{% if invoice.next_reminder_date %} · prochaine le {{ invoice.next_reminder_date|date:"d.m.Y" }}{% endif %}</dd>
+          {% if invoice.paid_at %}<dt class="col-sm-4 text-muted fw-normal small">Payée le</dt><dd class="col-sm-8">{{ invoice.paid_at|date:"d.m.Y" }}{% if invoice.paid_marked_by %} (pointée par {{ invoice.paid_marked_by.first_name|default:invoice.paid_marked_by.username }}){% endif %}</dd>{% endif %}
+          <dt class="col-sm-4 text-muted fw-normal small">Archive</dt><dd class="col-sm-8">{% if invoice.archived_file %}<a href="{% url 'documents:index' %}?folder={{ invoice.archived_file.folder.pk }}"><i class="bi bi-folder2"></i> {{ invoice.archived_file.folder.path }}/{{ invoice.archived_file.name }}</a>{% else %}—{% endif %}</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Emails liés à cette facture</div>
+      <ul class="list-group list-group-flush">
+        {% for e in emails %}<li class="list-group-item small d-flex justify-content-between"><span><span class="badge text-bg-light">{{ e.get_kind_display }}</span> {{ e.to }}{% if e.cc %} <span class="text-muted">(Cc {{ e.cc }})</span>{% endif %}{% if not e.ok %} <span class="text-danger">— échec : {{ e.error|truncatechars:80 }}</span>{% endif %}</span><span class="text-muted">{{ e.sent_at|date:"d.m.Y H:i" }}</span></li>
+        {% empty %}<li class="list-group-item small text-muted">Aucun email envoyé.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header">Paiement</div>
+      <div class="card-body">
+        {% if invoice.status == 'PAYEE' %}
+        <p class="text-success"><i class="bi bi-check-circle-fill"></i> Payée le {{ invoice.paid_at|date:"d.m.Y" }}.</p>
+        <form method="post" action="{% url 'billing:invoice_toggle_paid' invoice.pk %}">{% csrf_token %}<button class="btn btn-outline-secondary btn-sm">Annuler le pointage</button></form>
+        {% elif invoice.status == 'ANNULEE' %}
+        <p class="text-muted mb-0">Facture annulée.</p>
+        {% else %}
+        <form method="post" action="{% url 'billing:invoice_toggle_paid' invoice.pk %}">{% csrf_token %}
+          <label class="form-label">Date du paiement (constatée sur le relevé)</label>
+          {{ paid_form.paid_at }}
+          <button class="btn btn-success mt-3 w-100"><i class="bi bi-check2-circle"></i> Marquer comme payée</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Actions</div>
+      <div class="card-body d-grid gap-2">
+        <form method="post" action="{% url 'billing:invoice_regenerate' invoice.pk %}">{% csrf_token %}<button class="btn btn-outline-secondary w-100"><i class="bi bi-arrow-repeat"></i> Régénérer le PDF</button></form>
+        {% if invoice.status == 'ENVOYEE' or invoice.status == 'RELANCEE' %}
+        <form method="post" action="{% url 'billing:invoice_send' invoice.pk %}" data-confirm="Envoyer une relance maintenant ?">{% csrf_token %}<input type="hidden" name="reminder" value="1"><button class="btn btn-outline-warning w-100"><i class="bi bi-bell"></i> Envoyer une relance maintenant</button></form>
+        {% endif %}
+        {% if invoice.is_unpaid %}
+        <form method="post" action="{% url 'billing:invoice_cancel' invoice.pk %}" data-confirm="Annuler cette facture ? Elle restera visible mais ne sera plus suivie.">{% csrf_token %}<button class="btn btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Annuler la facture</button></form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

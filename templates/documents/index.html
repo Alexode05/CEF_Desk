@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Fichiers{% endblock %}
+{% block page_title %}Fichiers{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Documents administratifs du club. Les factures générées sont archivées automatiquement dans Club/Factures, les modèles de formulaires dans Club/Formulaires.</p>{% endblock %}
+{% block page_actions %}
+<button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#newFolderModal"><i class="bi bi-folder-plus"></i> Nouveau dossier</button>
+{% if folder %}<button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#uploadModal"><i class="bi bi-upload"></i> Déposer des fichiers</button>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <nav aria-label="Chemin"><ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'documents:index' %}"><i class="bi bi-hdd"></i> Racine</a></li>
+      {% for a in ancestors %}<li class="breadcrumb-item"><a href="?folder={{ a.pk }}">{{ a.name }}</a></li>{% endfor %}
+      {% if folder %}<li class="breadcrumb-item active">{{ folder.name }}</li>{% endif %}
+    </ol></nav>
+  </div>
+  <div class="table-responsive"><table class="table table-hover align-middle">
+    <thead><tr><th style="width:40px"></th><th>Nom</th><th>Taille</th><th>Déposé</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>
+    {% if folder %}<tr class="file-row"><td><i class="bi bi-arrow-90deg-up text-muted"></i></td><td colspan="4"><a href="{% if folder.parent %}?folder={{ folder.parent.pk }}{% else %}{% url 'documents:index' %}{% endif %}">..</a></td></tr>{% endif %}
+    {% for sf in subfolders %}
+    <tr class="file-row">
+      <td><i class="bi bi-folder-fill"></i></td>
+      <td><a class="fw-semibold text-decoration-none" href="?folder={{ sf.pk }}">{{ sf.name }}</a>{% if sf.is_system %} <span class="badge text-bg-light">système</span>{% endif %}</td>
+      <td class="text-muted small">{{ sf.children.count }} dossier(s), {{ sf.files.count }} fichier(s)</td>
+      <td class="text-muted small">{{ sf.created_at|date:"d.m.Y" }}</td>
+      <td class="text-end text-nowrap">
+        {% if not sf.is_system %}
+        <button class="btn btn-sm btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#ren-f{{ sf.pk }}" title="Renommer"><i class="bi bi-pencil"></i></button>
+        <form method="post" action="{% url 'documents:delete' 'folder' sf.pk %}" class="d-inline" data-confirm="Supprimer le dossier « {{ sf.name }} » ? (doit être vide)">{% csrf_token %}<button class="btn btn-sm btn-link text-danger" title="Supprimer"><i class="bi bi-trash"></i></button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% if not sf.is_system %}<tr class="collapse" id="ren-f{{ sf.pk }}"><td></td><td colspan="4"><form method="post" action="{% url 'documents:rename' 'folder' sf.pk %}" class="d-flex gap-2">{% csrf_token %}<input class="form-control form-control-sm" name="name" value="{{ sf.name }}"><button class="btn btn-sm btn-outline-primary">OK</button></form></td></tr>{% endif %}
+    {% endfor %}
+    {% for f in files %}
+    <tr class="file-row">
+      <td><i class="bi {{ f.icon }}"></i></td>
+      <td><a class="text-decoration-none" href="{% url 'documents:download' f.pk %}?inline=1" target="_blank">{{ f.name }}</a>{% if f.is_system %} <span class="badge text-bg-light" title="Déposé automatiquement par l'application">auto</span>{% endif %}</td>
+      <td class="text-muted small">{{ f.size|filesizeformat }}</td>
+      <td class="text-muted small">{{ f.uploaded_at|date:"d.m.Y H:i" }}{% if f.uploaded_by %} · {{ f.uploaded_by.first_name|default:f.uploaded_by.username }}{% endif %}</td>
+      <td class="text-end text-nowrap">
+        <a class="btn btn-sm btn-link" href="{% url 'documents:download' f.pk %}" title="Télécharger"><i class="bi bi-download"></i></a>
+        <button class="btn btn-sm btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#ren-{{ f.pk }}" title="Renommer"><i class="bi bi-pencil"></i></button>
+        <form method="post" action="{% url 'documents:delete' 'file' f.pk %}" class="d-inline" data-confirm="Supprimer définitivement « {{ f.name }} » ?">{% csrf_token %}<button class="btn btn-sm btn-link text-danger" title="Supprimer"><i class="bi bi-trash"></i></button></form>
+      </td>
+    </tr>
+    <tr class="collapse" id="ren-{{ f.pk }}"><td></td><td colspan="4"><form method="post" action="{% url 'documents:rename' 'file' f.pk %}" class="d-flex gap-2">{% csrf_token %}<input class="form-control form-control-sm" name="name" value="{{ f.name }}"><button class="btn btn-sm btn-outline-primary">OK</button></form></td></tr>
+    {% endfor %}
+    {% if not subfolders and not files %}<tr><td colspan="5"><div class="empty-state"><i class="bi bi-folder2-open"></i>{% if folder %}Dossier vide. Déposez des fichiers ou créez un sous-dossier.{% else %}Aucun dossier.{% endif %}</div></td></tr>{% endif %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="modal fade" id="newFolderModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <form method="post" action="{% if folder %}{% url 'documents:create_folder' folder.pk %}{% else %}{% url 'documents:create_root_folder' %}{% endif %}">{% csrf_token %}
+    <div class="modal-header"><h5 class="modal-title">Nouveau dossier {% if folder %}dans « {{ folder.name }} »{% endif %}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><input class="form-control" name="name" placeholder="Nom du dossier" required autofocus></div>
+    <div class="modal-footer"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Annuler</button><button class="btn btn-primary">Créer</button></div>
+  </form>
+</div></div></div>
+
+{% if folder %}
+<div class="modal fade" id="uploadModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <form method="post" action="{% url 'documents:upload' folder.pk %}" enctype="multipart/form-data">{% csrf_token %}
+    <div class="modal-header"><h5 class="modal-title">Déposer dans « {{ folder.name }} »</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><input class="form-control" type="file" name="files" multiple required><div class="form-text">Plusieurs fichiers possibles, {{ max_mb }} Mo max chacun. Les exécutables sont refusés.</div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Annuler</button><button class="btn btn-primary"><i class="bi bi-upload"></i> Déposer</button></div>
+  </form>
+</div></div></div>
+{% endif %}
+{% endblock %}

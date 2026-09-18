@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Factures{% endblock %}
+{% block page_title %}Factures{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">{{ invoices|length }} facture(s) · total CHF {{ total|floatformat:2 }}. Cochez « payée » après constat du paiement sur le relevé bancaire.</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'billing:index' %}"><i class="bi bi-arrow-left"></i> Comptabilité</a><a class="btn btn-primary" href="{% url 'billing:batch_create' %}"><i class="bi bi-files"></i> Générer un lot</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-body pb-2">
+    <form method="get" class="row g-2 align-items-center">
+      <div class="col-md-4"><div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input class="form-control" type="search" name="q" value="{{ q }}" placeholder="Nom ou n° de facture"></div></div>
+      <div class="col-md-3">
+        <select class="form-select" name="etat" onchange="this.form.submit()">
+          <option value="impayees" {% if etat == 'impayees' %}selected{% endif %}>Impayées</option>
+          <option value="generees" {% if etat == 'generees' %}selected{% endif %}>Générées, non envoyées</option>
+          <option value="relances" {% if etat == 'relances' %}selected{% endif %}>Relancées</option>
+          <option value="payees" {% if etat == 'payees' %}selected{% endif %}>Payées</option>
+          <option value="toutes" {% if etat == 'toutes' %}selected{% endif %}>Toutes</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select class="form-select" name="saison" onchange="this.form.submit()">
+          <option value="">Toutes les saisons</option>
+          {% for s in seasons %}<option value="{{ s }}" {% if season == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+  <div class="table-responsive"><table class="table table-hover table-clickable">
+    <thead><tr><th style="width:70px">Payée</th><th>N°</th><th>Membre</th><th>Saison</th><th class="text-end">Montant</th><th>Émise</th><th>Échéance</th><th>Prochain rappel</th><th>Statut</th></tr></thead>
+    <tbody>
+    {% for inv in invoices %}
+    <tr data-href="{{ inv.get_absolute_url }}" class="{% if inv.status == 'ANNULEE' %}text-muted{% endif %}">
+      <td>{% if inv.status != 'ANNULEE' %}<form method="post" action="{% url 'billing:invoice_toggle_paid' inv.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input class="form-check-input" type="checkbox" onchange="this.form.submit()" {% if inv.status == 'PAYEE' %}checked{% endif %} title="Marquer payée / non payée"></form>{% endif %}</td>
+      <td class="text-nowrap">{{ inv.number }}</td>
+      <td class="fw-semibold">{{ inv.member.display_name }}</td>
+      <td>{{ inv.season }}</td>
+      <td class="text-end text-nowrap">CHF {{ inv.amount|floatformat:2 }}</td>
+      <td class="text-nowrap">{{ inv.issue_date|date:"d.m.Y" }}</td>
+      <td class="text-nowrap {% if inv.is_overdue %}text-danger fw-semibold{% endif %}">{{ inv.due_date|date:"d.m.Y" }}</td>
+      <td class="text-nowrap">{{ inv.next_reminder_date|date:"d.m.Y"|default:"—" }}</td>
+      <td><span class="badge-status inv-{{ inv.status }}">{{ inv.get_status_display }}</span></td>
+    </tr>
+    {% empty %}<tr><td colspan="9"><div class="empty-state"><i class="bi bi-receipt"></i>Aucune facture.</div></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

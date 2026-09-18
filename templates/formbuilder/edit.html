@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}{{ fd.name }}{% endblock %}
+{% block page_title %}{{ fd.name }} {% if not fd.is_active %}<span class="badge-status status-INACTIF align-middle">désactivé</span>{% endif %}{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Lien public à poser sur le site du club : <a href="{{ public_url }}" target="_blank">{{ public_url }}</a></p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'formbuilder:list' %}"><i class="bi bi-arrow-left"></i> Formulaires</a>
+<a class="btn btn-outline-secondary" href="{% url 'formbuilder:submissions' %}?form={{ fd.pk }}"><i class="bi bi-inbox"></i> Soumissions</a>
+<a class="btn btn-primary" href="{{ fd.get_public_url }}" target="_blank"><i class="bi bi-eye"></i> Aperçu public</a>
+{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center"><span>Éléments du formulaire (dans l'ordre)</span><span class="small text-muted">{{ fields|length }} élément(s)</span></div>
+      <div class="card-body">
+        {% for ff in fields %}
+        <div class="field-row">
+          <div class="d-flex flex-column gap-1">
+            <form method="post" action="{% url 'formbuilder:field_move' ff.pk 'up' %}">{% csrf_token %}<button class="btn btn-sm btn-link p-0 text-muted" {% if forloop.first %}disabled{% endif %} title="Monter"><i class="bi bi-chevron-up"></i></button></form>
+            <form method="post" action="{% url 'formbuilder:field_move' ff.pk 'down' %}">{% csrf_token %}<button class="btn btn-sm btn-link p-0 text-muted" {% if forloop.last %}disabled{% endif %} title="Descendre"><i class="bi bi-chevron-down"></i></button></form>
+          </div>
+          <div class="flex-grow-1">
+            {% if ff.kind == 'TEXT' %}
+              <div class="field-type"><i class="bi bi-text-paragraph"></i> Bloc de texte</div>
+              <div class="small">{{ ff.text|truncatechars:140 }}</div>
+            {% elif ff.kind == 'PROFILE' %}
+              <div class="field-label">{{ ff.effective_label }} <span class="badge text-bg-light">Mineur / Majeur</span></div>
+              <div class="field-type">Détermine le profil de la fiche créée et pilote les champs conditionnels</div>
+            {% else %}
+              <div class="field-label">{{ ff.effective_label }}{% if ff.required %} <span class="required-mark">*</span>{% endif %}{% if ff.field_definition and not ff.field_definition.is_builtin %} <span class="badge text-bg-light">perso</span>{% endif %}</div>
+              <div class="field-type">{{ ff.field_definition.get_field_type_display }} · champ fiche <code>{{ ff.field_definition.key }}</code>{% if ff.field_definition.is_sensitive %} · <i class="bi bi-shield-lock"></i> sensible{% endif %}</div>
+            {% endif %}
+            {% if ff.condition_field_id %}<div class="field-cond"><i class="bi bi-diagram-2"></i> Affiché {{ ff.condition_description }}</div>{% endif %}
+            {% if ff.help_text %}<div class="small text-muted">{{ ff.help_text }}</div>{% endif %}
+          </div>
+          <div class="d-flex gap-1">
+            <a class="btn btn-sm btn-link" href="{% url 'formbuilder:field_edit' ff.pk %}" title="Modifier / condition"><i class="bi bi-pencil"></i></a>
+            <form method="post" action="{% url 'formbuilder:field_delete' ff.pk %}" data-confirm="Retirer cet élément du formulaire ?">{% csrf_token %}<button class="btn btn-sm btn-link text-danger" title="Retirer"><i class="bi bi-x-lg"></i></button></form>
+          </div>
+        </div>
+        {% empty %}<div class="empty-state py-3">Aucun élément. Ajoutez des champs avec le panneau de droite.</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header">Ajouter un élément</div>
+      <div class="card-body">
+        <form method="post" novalidate>{% csrf_token %}
+          {{ add_form.kind|as_crispy_field }}
+          <div id="add-field-def">{{ add_form.field_definition|as_crispy_field }}{{ add_form.required|as_crispy_field }}</div>
+          <div id="add-text" style="display:none">{{ add_form.text|as_crispy_field }}</div>
+          <button class="btn btn-primary" name="add_field" value="1" type="submit"><i class="bi bi-plus-lg"></i> Ajouter</button>
+        </form>
+        <p class="small text-muted mt-3 mb-0">Les champs proposés sont exactement ceux de la fiche membre (natifs et personnalisés), à l'exception de ceux réservés au comité (statut, tranche tarifaire, réduction famille, rôle…). Pour créer un nouveau champ : <a href="{% url 'members:fields' %}">Champs de la fiche</a>.</p>
+      </div>
+    </div>
+    <div class="card mb-4">
+      <div class="card-header">Paramètres du formulaire</div>
+      <div class="card-body">
+        <form method="post" novalidate>{% csrf_token %}{{ settings_form|crispy }}<button class="btn btn-outline-primary" name="save_settings" value="1" type="submit"><i class="bi bi-save"></i> Enregistrer</button></form>
+      </div>
+    </div>
+    <div class="card border-danger">
+      <div class="card-body">
+        <form method="post" action="{% url 'formbuilder:delete' fd.pk %}" class="d-flex gap-2 align-items-center">{% csrf_token %}
+          <input class="form-control form-control-sm" name="confirm" placeholder="Recopiez « {{ fd.slug }} » pour supprimer">
+          <button class="btn btn-sm btn-outline-danger text-nowrap" type="submit"><i class="bi bi-trash"></i> Supprimer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var kind = document.getElementById("id_a-kind"), def = document.getElementById("add-field-def"), text = document.getElementById("add-text");
+  function toggle() { def.style.display = kind.value === "FIELD" ? "" : "none"; text.style.display = kind.value === "TEXT" ? "" : "none"; }
+  if (kind) { kind.addEventListener("change", toggle); toggle(); }
+})();
+</script>
+{% endblock %}

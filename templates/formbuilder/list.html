@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Formulaires{% endblock %}
+{% block page_title %}Formulaires{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Formulaires publics d'inscription. Chaque soumission crée une fiche « en attente de validation » et envoie un récapitulatif au secrétariat.</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'formbuilder:submissions' %}"><i class="bi bi-inbox"></i> Soumissions reçues</a>
+<a class="btn btn-primary" href="{% url 'formbuilder:create' %}"><i class="bi bi-plus-lg"></i> Nouveau formulaire</a>
+{% endblock %}
+{% block content %}
+<div class="card"><div class="table-responsive"><table class="table table-hover table-clickable">
+  <thead><tr><th>Nom</th><th>Profil créé</th><th>Lien public</th><th class="text-end">Champs</th><th class="text-end">Soumissions</th><th>État</th></tr></thead>
+  <tbody>
+  {% for f in forms %}
+  <tr data-href="{% url 'formbuilder:edit' f.pk %}">
+    <td class="fw-semibold">{{ f.name }}</td>
+    <td>{{ f.get_profile_display }}</td>
+    <td><a href="{{ f.get_public_url }}" target="_blank" class="small"><i class="bi bi-box-arrow-up-right"></i> /formulaires/public/{{ f.slug }}/</a></td>
+    <td class="text-end">{{ f.n_fields }}</td>
+    <td class="text-end">{{ f.n_sub }}</td>
+    <td>{% if f.is_active %}<span class="badge-status status-ACTIF">Actif</span>{% else %}<span class="badge-status status-INACTIF">Désactivé</span>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6"><div class="empty-state"><i class="bi bi-ui-checks"></i>Aucun formulaire. Créez par exemple « Inscription » (Mineur/Majeur) et « Cours d'essai ».</div></td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

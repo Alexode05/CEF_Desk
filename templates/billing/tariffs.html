@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Barème{% endblock %}
+{% block page_title %}Barème des cotisations{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">3 modalités × 4 tranches = 12 tarifs (CHF). Réduction famille : -100 CHF dès le 2ᵉ enfant, appliquée automatiquement si la case est cochée sur la fiche.</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'billing:index' %}"><i class="bi bi-arrow-left"></i> Comptabilité</a>{% endblock %}
+{% block content %}
+<div class="alert alert-info small"><i class="bi bi-info-circle"></i> Les montants exacts doivent être communiqués par le comité (point ouvert du cahier des charges). Les cases vides bloquent la facturation des membres concernés. Les modalités et tranches se gèrent dans l'<a href="/admin/members/trainingmode/">administration technique</a>.</div>
+<form method="post">
+  {% csrf_token %}
+  <div class="card">
+    <div class="table-responsive"><table class="table align-middle">
+      <thead><tr><th>Modalité \ Tranche</th>{% for b in brackets %}<th class="text-center">{{ b.name }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for m, cells in rows %}
+      <tr>
+        <th class="fw-semibold">{{ m.name }}<br><span class="small text-muted fw-normal">{{ m.days_per_week }} jour(s)/semaine</span></th>
+        {% for t in cells %}
+        <td><div class="input-group input-group-sm"><span class="input-group-text">CHF</span><input class="form-control text-end" name="t_{{ m.pk }}_{{ t.bracket.pk }}" value="{% if t and t.amount is not None %}{{ t.amount|floatformat:2 }}{% endif %}" inputmode="decimal" placeholder="à définir"></div></td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  <button class="btn btn-primary btn-lg mt-3" type="submit"><i class="bi bi-save"></i> Enregistrer le barème</button>
+</form>
+{% endblock %}

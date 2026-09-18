@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Nouvelle liste{% endblock %}
+{% block page_title %}Nouvelle liste de diffusion{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-6"><div class="card"><div class="card-body">
+    <form method="post" novalidate>{% csrf_token %}{{ form|crispy }}<button class="btn btn-primary" type="submit">Créer la liste</button> <a class="btn btn-link" href="{% url 'mailing:index' %}">Annuler</a></form>
+  </div></div></div>
+  <div class="col-lg-6">
+    {% if preselected %}
+    <div class="card"><div class="card-header">Contacts pré-sélectionnés ({{ preselected|length }})</div><ul class="list-group list-group-flush">{% for m in preselected %}<li class="list-group-item small">{{ m.display_name }} <span class="text-muted">{{ m.primary_email }}</span></li>{% endfor %}</ul></div>
+    {% else %}
+    <div class="card"><div class="card-body small text-muted">
+      <p><strong>Dynamique</strong> : la liste = tous les membres d'un groupe (ex. « Cours 1 », « Essais »). Elle se met à jour toute seule quand le groupe change.</p>
+      <p class="mb-0"><strong>Statique</strong> : sélection manuelle de contacts, figée. Astuce : sélectionnez des contacts dans la liste des Contacts puis créez la liste depuis là, ou cochez les contacts après création.</p>
+    </div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script>(function(){var k=document.getElementById("id_kind"),g=document.getElementById("div_id_group");function t(){g.style.display=k.value==="DYNAMIC"?"":"none";}if(k){k.addEventListener("change",t);t();}})();</script>{% endblock %}

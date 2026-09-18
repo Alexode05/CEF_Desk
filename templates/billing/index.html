@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Comptabilité{% endblock %}
+{% block page_title %}Comptabilité{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Cotisations de la saison {{ season }} · génération et envoi groupés, suivi des paiements, relances.</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'billing:tariffs' %}"><i class="bi bi-table"></i> Barème</a>
+<a class="btn btn-outline-secondary" href="{% url 'billing:invoice_list' %}?etat=toutes"><i class="bi bi-receipt"></i> Toutes les factures</a>
+<a class="btn btn-primary" href="{% url 'billing:batch_create' %}"><i class="bi bi-files"></i> Générer un lot de factures</a>
+{% endblock %}
+{% block content %}
+{% if club.bank_details_are_placeholder %}
+<div class="alert alert-warning d-flex gap-2 align-items-start"><i class="bi bi-exclamation-triangle-fill mt-1"></i><div><strong>Coordonnées bancaires fictives.</strong> Les QR-factures générées utilisent un IBAN d'exemple : à remplacer dans les <a href="{% url 'dashboard:settings' %}">Paramètres du club</a> avant tout envoi réel.</div></div>
+{% endif %}
+{% if stats.undefined_tariffs %}
+<div class="alert alert-info d-flex gap-2 align-items-start"><i class="bi bi-info-circle-fill mt-1"></i><div>{{ stats.undefined_tariffs }} tarif(s) du <a href="{% url 'billing:tariffs' %}">barème</a> ne sont pas encore définis : les membres concernés ne pourront pas être facturés.</div></div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><a class="card stat-card" href="{% url 'billing:invoice_list' %}?etat=impayees"><span class="stat-icon warning"><i class="bi bi-hourglass-split"></i></span><span><span class="stat-value">{{ stats.unpaid_count }}</span><br><span class="stat-label">impayées · CHF {{ stats.unpaid_total|floatformat:2 }}</span></span></a></div>
+  <div class="col-md-3"><a class="card stat-card" href="{% url 'billing:invoice_list' %}?etat=impayees"><span class="stat-icon" style="background:#fde8e8;color:#b42318"><i class="bi bi-alarm"></i></span><span><span class="stat-value">{{ stats.overdue_count }}</span><br><span class="stat-label">échues</span></span></a></div>
+  <div class="col-md-3"><a class="card stat-card" href="{% url 'billing:invoice_list' %}?etat=payees"><span class="stat-icon success"><i class="bi bi-check2-circle"></i></span><span><span class="stat-value">{{ stats.paid_season_count }}</span><br><span class="stat-label">payées {{ season }} · CHF {{ stats.paid_season_total|floatformat:2 }}</span></span></a></div>
+  <div class="col-md-3">
+    <div class="card stat-card"><span class="stat-icon"><i class="bi bi-bell"></i></span><span><span class="stat-value">{{ stats.reminders_due }}</span><br><span class="stat-label">relance(s) à envoyer</span></span>
+      <form method="post" action="{% url 'billing:run_reminders' %}" class="ms-auto" data-confirm="Envoyer maintenant les relances dues (trésorier en copie) ?">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" {% if not stats.reminders_due %}disabled{% endif %}>Envoyer</button></form>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between"><span>Factures impayées (par échéance)</span><a class="small" href="{% url 'billing:invoice_list' %}?etat=impayees">Tout voir</a></div>
+      {% if recent_unpaid %}
+      <div class="table-responsive"><table class="table table-hover table-clickable">
+        <thead><tr><th>N°</th><th>Membre</th><th class="text-end">Montant</th><th>Échéance</th><th>Prochain rappel</th><th>Statut</th></tr></thead>
+        <tbody>{% for inv in recent_unpaid %}<tr data-href="{{ inv.get_absolute_url }}"><td>{{ inv.number }}</td><td>{{ inv.member.display_name }}</td><td class="text-end">CHF {{ inv.amount|floatformat:2 }}</td><td class="{% if inv.is_overdue %}text-danger fw-semibold{% endif %}">{{ inv.due_date|date:"d.m.Y" }}</td><td>{{ inv.next_reminder_date|date:"d.m.Y"|default:"—" }}</td><td><span class="badge-status inv-{{ inv.status }}">{{ inv.get_status_display }}</span></td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% else %}<div class="empty-state"><i class="bi bi-check2-circle"></i>Aucune facture impayée.</div>{% endif %}
+    </div>
+    <div class="card">
+      <div class="card-header d-flex justify-content-between"><span>Lots de factures</span><a class="small" href="{% url 'billing:batch_list' %}">Tout voir</a></div>
+      {% if batches %}
+      <div class="table-responsive"><table class="table table-hover table-clickable">
+        <thead><tr><th>Lot</th><th>Saison</th><th>Créé le</th><th class="text-end">Factures</th><th class="text-end">Total</th></tr></thead>
+        <tbody>{% for b in batches %}<tr data-href="{% url 'billing:batch_detail' b.pk %}"><td class="fw-semibold">{{ b.label }}</td><td>{{ b.season }}</td><td>{{ b.created_at|date:"d.m.Y" }}</td><td class="text-end">{{ b.invoices.count }}</td><td class="text-end">CHF {{ b.total|floatformat:2 }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% else %}<div class="empty-state"><i class="bi bi-files"></i>Aucun lot généré. <a href="{% url 'billing:batch_create' %}">Générer un lot</a>.</div>{% endif %}
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">Derniers emails envoyés</div>
+      <ul class="list-group list-group-flush">
+        {% for e in recent_emails %}
+        <li class="list-group-item small"><div class="d-flex justify-content-between"><span><span class="badge text-bg-light">{{ e.get_kind_display }}</span> {{ e.to }}</span><span class="text-muted">{{ e.sent_at|date:"d.m.Y H:i" }}</span></div><div class="text-muted">{{ e.subject|truncatechars:70 }}{% if not e.ok %} · <span class="text-danger">échec</span>{% endif %}</div></li>
+        {% empty %}<li class="list-group-item text-muted small">Aucun email envoyé pour l'instant.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
