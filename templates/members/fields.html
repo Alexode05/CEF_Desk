@@ -1,49 +1,127 @@
 {% extends "base.html" %}
 {% load crispy_forms_tags %}
-{% block title %}Champs de la fiche{% endblock %}
-{% block page_title %}Champs de la fiche membre{% endblock %}
-{% block page_subtitle %}<p class="app-subtitle">Ajoutez vos propres champs sans toucher au code. Ils apparaissent sur les fiches, dans les colonnes, filtres, exports et l'éditeur de formulaires.</p>{% endblock %}
-{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'members:list' %}"><i class="bi bi-arrow-left"></i> Contacts</a>{% endblock %}
+{% block title %}Modèle des fiches{% endblock %}
+{% block page_title %}Modèle des fiches membres{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Choisissez pour chaque type de fiche les champs présents, leur libellé, leur section et leur ordre. Les formulaires d'inscription, les listes et les exports suivent automatiquement.</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'dashboard:settings' %}"><i class="bi bi-gear"></i> Paramètres du club</a>
+<a class="btn btn-outline-secondary" href="{% url 'members:list' %}"><i class="bi bi-arrow-left"></i> Contacts</a>
+{% endblock %}
 {% block content %}
+<ul class="nav nav-pills mb-3">
+  {% for code, label in profiles %}
+  <li class="nav-item"><a class="nav-link {% if code == profile %}active{% endif %}" href="?profile={{ code }}">Fiche « {{ label }} »</a></li>
+  {% endfor %}
+</ul>
+
 <div class="row g-4">
-  <div class="col-lg-7">
-    <div class="card mb-4">
-      <div class="card-header">Champs personnalisés</div>
-      <div class="table-responsive"><table class="table table-hover">
-        <thead><tr><th>Libellé</th><th>Type</th><th>Profils</th><th>Sensible</th><th>Actif</th><th></th></tr></thead>
-        <tbody>
-        {% for d in custom %}
-        <tr>
-          <td class="fw-semibold">{{ d.label }}<br><code class="small text-muted">{{ d.key }}</code></td>
-          <td>{{ d.get_field_type_display }}</td>
-          <td class="small">{{ d.profiles|join:", "|default:"Tous" }}</td>
-          <td>{% if d.is_sensitive %}<i class="bi bi-shield-lock text-warning"></i>{% endif %}</td>
-          <td>{% if d.is_active %}<i class="bi bi-check-lg text-success"></i>{% else %}<span class="text-muted">non</span>{% endif %}</td>
-          <td class="text-end text-nowrap"><a class="btn btn-sm btn-link" href="{% url 'members:field_edit' d.pk %}"><i class="bi bi-pencil"></i></a>
-            <form method="post" action="{% url 'members:field_delete' d.pk %}" class="d-inline" data-confirm="Supprimer le champ « {{ d.label }} » ?">{% csrf_token %}<button class="btn btn-sm btn-link text-danger"><i class="bi bi-trash"></i></button></form></td>
-        </tr>
-        {% empty %}<tr><td colspan="6"><div class="empty-state py-3">Aucun champ personnalisé pour l'instant.</div></td></tr>{% endfor %}
-        </tbody>
-      </table></div>
-    </div>
-    <div class="card">
-      <div class="card-header">Champs natifs <span class="small text-muted fw-normal">— structure de base, non modifiable</span></div>
-      <div class="table-responsive"><table class="table table-sm">
-        <thead><tr><th>Libellé</th><th>Type</th><th>Profils</th><th>Sensible</th></tr></thead>
-        <tbody>
-        {% for d in builtin %}
-        <tr><td>{{ d.label }}</td><td class="small text-muted">{{ d.get_field_type_display }}</td><td class="small text-muted">{{ d.profiles|join:", " }}</td>
-          <td>{% if d.key == 'avs_number' %}<i class="bi bi-shield-lock text-warning" title="Toujours sensible"></i>{% else %}<form method="post" action="{% url 'members:field_toggle_sensitive' d.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-link btn-sm p-0" title="Basculer">{% if d.is_sensitive %}<i class="bi bi-shield-lock text-warning"></i>{% else %}<i class="bi bi-shield text-muted"></i>{% endif %}</button></form>{% endif %}</td></tr>
-        {% endfor %}
-        </tbody>
-      </table></div>
-    </div>
+  <div class="col-xl-9">
+    <form method="post" id="layoutForm">
+      {% csrf_token %}
+      <input type="hidden" name="profile" value="{{ profile }}">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span>Champs de la fiche « {{ profile }} »</span>
+          <span class="small text-muted fw-normal">▲ ▼ pour changer l'ordre · la liste « Section » déplace le champ · décocher « Sur la fiche » le masque</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0" id="layoutTable">
+            <thead><tr><th style="width:74px">Ordre</th><th>Libellé affiché</th><th>Type</th><th style="width:190px">Section</th><th class="text-center" style="width:90px">Sur la fiche</th><th class="text-center" style="width:80px">Sensible</th></tr></thead>
+            {% for code, title, rows in sections %}
+            <tbody class="section-group" data-section="{{ code }}">
+              <tr class="section-head table-light"><td colspan="6" class="fw-semibold small text-uppercase text-muted">{{ title }}</td></tr>
+              {% for r in rows %}
+              <tr class="layout-row {% if not r.shown %}text-muted{% endif %}">
+                <td class="text-nowrap">
+                  <input type="hidden" name="ids" value="{{ r.d.pk }}">
+                  <button type="button" class="btn btn-sm btn-outline-secondary py-0 move-up" title="Monter"><i class="bi bi-chevron-up"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary py-0 move-down" title="Descendre"><i class="bi bi-chevron-down"></i></button>
+                </td>
+                <td><input class="form-control form-control-sm" name="label_{{ r.d.pk }}" value="{{ r.label }}" maxlength="100" {% if r.d.key == 'member_id' %}readonly{% endif %}></td>
+                <td class="small">
+                  {{ r.d.get_field_type_display }}
+                  {% if not r.d.is_builtin %}<span class="badge text-bg-light">perso</span>{% endif %}
+                  {% if r.computed %}<span class="badge text-bg-light" title="Calculé automatiquement">auto</span>{% endif %}
+                </td>
+                <td>
+                  <select class="form-select form-select-sm section-select" name="section_{{ r.d.pk }}">
+                    {% for scode, stitle in section_choices %}<option value="{{ scode }}" {% if scode == code %}selected{% endif %}>{{ stitle }}</option>{% endfor %}
+                  </select>
+                </td>
+                <td class="text-center"><input class="form-check-input" type="checkbox" name="show_{{ r.d.pk }}" {% if r.shown or r.locked %}checked{% endif %} {% if r.locked %}disabled title="Champ indispensable : ne peut pas être masqué"{% endif %}></td>
+                <td class="text-center"><input class="form-check-input" type="checkbox" name="sens_{{ r.d.pk }}" {% if r.d.is_sensitive %}checked{% endif %} {% if r.avs %}disabled title="Le N° AVS est toujours sensible"{% endif %}></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            {% endfor %}
+          </table>
+        </div>
+        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <button class="btn btn-primary" type="submit" name="action" value="save_layout"><i class="bi bi-save"></i> Enregistrer le modèle « {{ profile }} »</button>
+          <button class="btn btn-outline-danger btn-sm" type="submit" name="action" value="reset_layout" form="resetForm"><i class="bi bi-arrow-counterclockwise"></i> Rétablir le modèle d'origine</button>
+        </div>
+      </div>
+    </form>
+    <form method="post" id="resetForm" data-confirm="Rétablir le modèle d'origine de la fiche « {{ profile }} » ? Libellés, ordre, sections et champs affichés reviennent aux valeurs de départ (annulation impossible).">
+      {% csrf_token %}<input type="hidden" name="profile" value="{{ profile }}"><input type="hidden" name="action" value="reset_layout">
+    </form>
+    <p class="small text-muted mt-3"><i class="bi bi-shield-lock"></i> Prénom, Nom et Statut sont indispensables et ne peuvent pas être masqués. Les données « sensibles » sont masquées dans les listes et exclues par défaut des exports. Chaque type de fiche (Mineur, Majeur, Essai) a son propre modèle, indépendant des autres.</p>
   </div>
-  <div class="col-lg-5">
+
+  <div class="col-xl-3">
+    <div class="card mb-4">
+      <div class="card-header">Ajouter un champ personnalisé</div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="profile" value="{{ profile }}">
+          <input type="hidden" name="action" value="add_field">
+          {{ add_form|crispy }}
+          <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Ajouter</button>
+        </form>
+      </div>
+    </div>
     <div class="card">
-      <div class="card-header">Ajouter un champ</div>
-      <div class="card-body"><form method="post" novalidate>{% csrf_token %}{{ form|crispy }}<button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Ajouter le champ</button></form></div>
+      <div class="card-header">Champs personnalisés</div>
+      <ul class="list-group list-group-flush">
+        {% for d in custom %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span class="small"><strong>{{ d.label }}</strong><br><span class="text-muted">{{ d.get_field_type_display }}</span></span>
+          <span class="text-nowrap">
+            <a class="btn btn-sm btn-link" href="{% url 'members:field_edit' d.pk %}" title="Modifier"><i class="bi bi-pencil"></i></a>
+            <form method="post" action="{% url 'members:field_delete' d.pk %}" class="d-inline" data-confirm="Supprimer le champ « {{ d.label }} » ? Les valeurs déjà saisies restent stockées mais ne sont plus affichées.">{% csrf_token %}<button class="btn btn-sm btn-link text-danger" title="Supprimer"><i class="bi bi-trash"></i></button></form>
+          </span>
+        </li>
+        {% empty %}<li class="list-group-item small text-muted">Aucun champ personnalisé.</li>{% endfor %}
+      </ul>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var table = document.getElementById("layoutTable");
+  if (!table) return;
+  function fieldRows(tbody) { return Array.prototype.filter.call(tbody.children, function (tr) { return tr.classList.contains("layout-row"); }); }
+
+  // ▲ ▼ : déplacement à l'intérieur de la section
+  table.addEventListener("click", function (e) {
+    var btn = e.target.closest(".move-up, .move-down");
+    if (!btn) return;
+    var row = btn.closest("tr"), tbody = row.parentNode, rows = fieldRows(tbody), i = rows.indexOf(row);
+    if (btn.classList.contains("move-up") && i > 0) tbody.insertBefore(row, rows[i - 1]);
+    if (btn.classList.contains("move-down") && i < rows.length - 1) tbody.insertBefore(rows[i + 1], row);
+  });
+
+  // Changement de section : la ligne rejoint immédiatement la section choisie
+  table.addEventListener("change", function (e) {
+    var sel = e.target.closest(".section-select");
+    if (!sel) return;
+    var row = sel.closest("tr"), target = table.querySelector('tbody[data-section="' + sel.value + '"]');
+    if (target) target.appendChild(row);
+  });
+})();
+</script>
 {% endblock %}

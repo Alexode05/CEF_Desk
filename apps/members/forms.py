@@ -78,22 +78,25 @@ class MemberForm(forms.ModelForm):
     def __init__(self, *args, profile, **kwargs):
         super().__init__(*args, **kwargs)
         self.profile = profile
-        self.custom_definitions = [
-            d for d in F.all_field_definitions(profile) if not d.is_builtin
-        ]
+        # Le modèle de fiche (champs affichés, libellés, ordre, sections) vient de la base : il est
+        # modifiable par le comité depuis « Modèle des fiches ».
+        self.defs = {d.key: d for d in F.all_field_definitions(profile)}
+        self.custom_definitions = [d for d in self.defs.values() if not d.is_builtin]
 
         # Champs natifs applicables au profil (+ champs de gestion toujours présents).
-        applicable = {f.key for f in F.BUILTIN_FIELDS if profile in f.profiles and not f.computed}
-        applicable |= {"kind", "company_name", "training_days"}
+        applicable = {
+            k for k, d in self.defs.items() if d.is_builtin and k in F.BUILTIN_BY_KEY and not F.BUILTIN_BY_KEY[k].computed
+        }
+        applicable |= {"kind", "company_name"} | F.LOCKED_FIELDS
         for key in list(self.fields):
             if key not in applicable:
                 del self.fields[key]
 
-        # Libellés dépendant du profil.
+        # Libellés propres au profil.
         for key, ff in self.fields.items():
-            bf = F.BUILTIN_BY_KEY.get(key)
-            if bf:
-                ff.label = bf.label_for(profile)
+            d = self.defs.get(key)
+            if d:
+                ff.label = d.label_for(profile)
 
         if profile == Profile.ESSAI:
             # Statut figé sur « Essai » (ou « En attente ») : non modifiable à la main.
@@ -129,8 +132,18 @@ class MemberForm(forms.ModelForm):
         for d in self.custom_definitions:
             name = f"custom__{d.key}"
             self.fields[name] = form_field_for_definition(d)
+            self.fields[name].label = d.label_for(profile)
             if d.key in existing:
                 self.initial[name] = existing[d.key]
+
+        # Ordre propre au profil (champs de gestion « kind » / « raison sociale » toujours en tête).
+        def sort_key(name):
+            if name in ("kind", "company_name"):
+                return -1
+            d = self.defs.get(name[len("custom__"):] if name.startswith("custom__") else name)
+            return d.order_for(profile) if d else 10**6
+
+        self.fields = dict(sorted(self.fields.items(), key=lambda kv: sort_key(kv[0])))
 
     # --- Validation ---
     def clean_avs_number(self):
@@ -171,18 +184,17 @@ class MemberForm(forms.ModelForm):
 
     # --- Aide au rendu par sections ---
     def sections(self):
-        """Regroupe les champs liés par section pour le gabarit (disposition en deux colonnes)."""
-        order = ["general", "membership", "contact", "fencing", "training", "finance", "meta", "custom"]
+        """Regroupe les champs par section (mise en page du profil) pour le gabarit à deux colonnes."""
+        order = list(F.SECTION_TITLES)
         grouped = {s: [] for s in order}
         for name in self.fields:
-            if name.startswith("custom__"):
-                grouped["custom"].append(self[name])
-                continue
-            bf = F.BUILTIN_BY_KEY.get(name)
-            section = bf.section if bf else "meta"
             if name in ("kind", "company_name"):
-                section = "general"
-            grouped[section].append(self[name])
+                grouped["general"].append(self[name])
+                continue
+            key = name[len("custom__"):] if name.startswith("custom__") else name
+            d = self.defs.get(key)
+            section = d.section_for(self.profile) if d else "meta"
+            grouped.get(section, grouped["meta"]).append(self[name])
         return [(F.SECTION_TITLES[s], grouped[s]) for s in order if grouped[s]]
 
 
@@ -226,7 +238,7 @@ class FieldDefinitionForm(forms.ModelForm):
     def save(self, commit=True):
         obj = super().save(commit=False)
         obj.choices = self.cleaned_data["choices"]
-        obj.profiles = list(self.cleaned_data.get("profiles") or [])
+        obj.profiles = list(self.cleaned_data.get("profiles") or Profile.values)
         if not obj.key:
             base = services._ascii_slug(obj.label).replace("-", "_")[:50] or "champ"
             key, n = base, 1

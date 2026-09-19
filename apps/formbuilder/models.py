@@ -138,10 +138,7 @@ class FormField(models.Model):
         if self.kind == self.Kind.TEXT:
             return (self.text or "Texte")[:40]
         if self.field_definition:
-            from apps.members import fields as F
-
-            bf = F.BUILTIN_BY_KEY.get(self.field_definition.key)
-            return bf.label_for(self.form.profile) if bf else self.field_definition.label
+            return self.field_definition.label_for(self.form.profile)
         return "Champ"
 
     @property

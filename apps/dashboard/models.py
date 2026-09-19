@@ -47,6 +47,9 @@ class ClubSettings(models.Model):
     secretariat_email = models.EmailField(
         "Email du secrétariat (notifications d'inscription)", blank=True, default="secretariat@example.invalid"
     )
+    president_email = models.EmailField("Email du/de la président-e", blank=True)
+    vice_president_email = models.EmailField("Email du/de la vice-président-e", blank=True)
+    auditor_email = models.EmailField("Email du vérificateur des comptes", blank=True)
 
     # --- Saison et facturation ---
     season_start_month = models.PositiveSmallIntegerField(

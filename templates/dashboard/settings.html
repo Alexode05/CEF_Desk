@@ -34,10 +34,25 @@
         <div class="card-body">
           {{ form.treasurer_email|as_crispy_field }}
           {{ form.secretariat_email|as_crispy_field }}
+          {{ form.president_email|as_crispy_field }}
+          {{ form.vice_president_email|as_crispy_field }}
+          {{ form.auditor_email|as_crispy_field }}
+          <p class="small text-muted mb-0">Le trésorier est en copie (Cc) de toutes les factures et relances ; le secrétariat reçoit les inscriptions. Les autres adresses sont mémorisées pour le comité.</p>
         </div>
       </div>
     </div>
     <div class="col-lg-6">
+      <div class="card mb-4">
+        <div class="card-header">Modèle des fiches membres</div>
+        <div class="card-body">
+          <p class="small text-muted">Choisissez, pour chaque type de fiche, les champs présents, leurs libellés, leur ordre et leur section. Les formulaires d'inscription, les listes et les exports suivent automatiquement.</p>
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-primary" href="{% url 'members:fields' %}?profile=MINEUR"><i class="bi bi-ui-checks-grid"></i> Fiche Mineur</a>
+            <a class="btn btn-outline-primary" href="{% url 'members:fields' %}?profile=MAJEUR"><i class="bi bi-ui-checks-grid"></i> Fiche Majeur</a>
+            <a class="btn btn-outline-primary" href="{% url 'members:fields' %}?profile=ESSAI"><i class="bi bi-ui-checks-grid"></i> Fiche Cours d'essai</a>
+          </div>
+        </div>
+      </div>
       <div class="card mb-4">
         <div class="card-header">Saison et délais</div>
         <div class="card-body">

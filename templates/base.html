@@ -21,7 +21,7 @@
     </a>
     <nav class="app-nav">
       {% with section=request.resolver_match.namespace %}
-      <a class="app-nav-link {% if section == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:index' %}"><i class="bi bi-speedometer2"></i> Tableau de bord</a>
+      <a class="app-nav-link {% if section == 'dashboard' and request.resolver_match.url_name != 'settings' %}active{% endif %}" href="{% url 'dashboard:index' %}"><i class="bi bi-speedometer2"></i> Tableau de bord</a>
       <a class="app-nav-link {% if section == 'members' %}active{% endif %}" href="{% url 'members:list' %}"><i class="bi bi-people"></i> Contacts</a>
       <a class="app-nav-link {% if section == 'billing' %}active{% endif %}" href="{% url 'billing:index' %}"><i class="bi bi-receipt"></i> Comptabilité</a>
       <a class="app-nav-link {% if section == 'formbuilder' %}active{% endif %}" href="{% url 'formbuilder:list' %}"><i class="bi bi-ui-checks"></i> Formulaires</a>

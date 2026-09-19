@@ -50,6 +50,21 @@ class Laterality(models.TextChoices):
     GAUCHE = "GAUCHE", "Gauche"
 
 
+class Role(models.TextChoices):
+    """Rôle au sein du club (liste définie par le comité)."""
+
+    TIREUR = "TIREUR", "Tireur-euse"
+    COACH = "COACH", "Coach"
+    MAITRE_ARMES = "MAITRE_ARMES", "Maître d'arme"
+    MEMBRE = "MEMBRE", "Membre"
+    COMITE = "COMITE", "Comité"
+    PRESIDENT = "PRESIDENT", "Président-e"
+    VICE_PRESIDENT = "VICE_PRESIDENT", "Vice-président-e"
+    TRESORIER = "TRESORIER", "Trésorier-ère"
+    SECRETAIRE = "SECRETAIRE", "Secrétaire"
+    VERIFICATEUR = "VERIFICATEUR", "Vérificateur des comptes"
+
+
 WEEKDAYS = [
     ("LUN", "Lundi"),
     ("MAR", "Mardi"),
@@ -244,7 +259,7 @@ class Member(models.Model):
     exit_date = models.DateField("Sortie", null=True, blank=True)
     status = models.CharField("Statut", max_length=12, choices=MemberStatus.choices, default=MemberStatus.EN_ATTENTE)
     member_id = models.SlugField("ID", max_length=120, unique=True, blank=True)
-    role = models.CharField("Rôle", max_length=80, blank=True, help_text="Ex. Direction, Comité, Entraîneur…")
+    role = models.CharField("Rôle", max_length=16, choices=Role.choices, blank=True)
 
     # --- Escrime ---
     avs_number = models.CharField("N° AVS", max_length=16, blank=True, help_text="Format 756.XXXX.XXXX.XX")
@@ -417,7 +432,7 @@ class FieldDefinition(models.Model):
         "Options", default=list, blank=True, help_text="Pour les listes : une option par ligne."
     )
     profiles = models.JSONField(
-        "Profils concernés", default=list, blank=True, help_text="Liste parmi MINEUR, MAJEUR, ESSAI (vide = tous)."
+        "Profils concernés", default=list, blank=True, help_text="Liste parmi MINEUR, MAJEUR, ESSAI."
     )
     is_builtin = models.BooleanField("Champ natif", default=False, editable=False)
     is_sensitive = models.BooleanField(
@@ -426,6 +441,11 @@ class FieldDefinition(models.Model):
     is_active = models.BooleanField("Actif", default=True)
     sort_order = models.PositiveSmallIntegerField("Ordre", default=500)
     help_text = models.CharField("Aide", max_length=200, blank=True)
+    section = models.CharField("Section par défaut", max_length=12, blank=True)
+    layout = models.JSONField(
+        "Mise en page par profil", default=dict, blank=True,
+        help_text="Personnalisation par profil : {PROFIL: {label, section, order}}. Modifiée depuis « Modèle des fiches ».",
+    )
 
     class Meta:
         ordering = ["sort_order", "label"]
@@ -436,7 +456,21 @@ class FieldDefinition(models.Model):
         return self.label
 
     def applies_to(self, profile):
-        return not self.profiles or profile in self.profiles
+        return profile in (self.profiles or [])
+
+    # --- Mise en page propre à chaque profil de fiche (Mineur / Majeur / Essai) ---
+    def layout_for(self, profile):
+        return (self.layout or {}).get(profile, {}) if profile else {}
+
+    def label_for(self, profile=None):
+        return self.layout_for(profile).get("label") or self.label
+
+    def section_for(self, profile=None):
+        return self.layout_for(profile).get("section") or self.section or ("meta" if self.is_builtin else "custom")
+
+    def order_for(self, profile=None):
+        order = self.layout_for(profile).get("order")
+        return self.sort_order if order is None else order
 
     @property
     def choice_pairs(self):

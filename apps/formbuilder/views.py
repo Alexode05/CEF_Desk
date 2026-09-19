@@ -51,21 +51,20 @@ def _seed_default_fields(fd):
         FormField.objects.create(form=fd, order=order, kind=FormField.Kind.PROFILE, required=True)
         order += 10
     profile_field = fd.fields.filter(kind=FormField.Kind.PROFILE).first()
-    for d in FieldDefinition.objects.filter(is_active=True, is_builtin=True):
+    for d in sorted(FieldDefinition.objects.filter(is_active=True, is_builtin=True), key=lambda x: x.order_for(fd.profile)):
         if d.key in F.NOT_IN_PUBLIC_FORMS:
             continue
-        bf = F.BUILTIN_BY_KEY[d.key]
         if fd.profile == Profile.ESSAI:
-            if Profile.ESSAI not in bf.profiles:
+            if not d.applies_to(Profile.ESSAI):
                 continue
-        elif Profile.MINEUR not in bf.profiles and Profile.MAJEUR not in bf.profiles:
+        elif not (d.applies_to(Profile.MINEUR) or d.applies_to(Profile.MAJEUR)):
             continue
         ff = FormField(form=fd, order=order, kind=FormField.Kind.FIELD, field_definition=d, required=d.key in ("first_name", "last_name", "birth_date", "address", "postal_code", "city"))
         # Champs propres aux mineurs / majeurs : conditionnés au type d'inscription.
-        if profile_field and bf.profiles == [Profile.MINEUR]:
+        if profile_field and d.profiles == [Profile.MINEUR]:
             ff.condition_field, ff.condition_operator, ff.condition_value = profile_field, "eq", Profile.MINEUR
             ff.required = d.key in ("phone_parent1", "email_parent1")
-        elif profile_field and bf.profiles == [Profile.MAJEUR]:
+        elif profile_field and d.profiles == [Profile.MAJEUR]:
             ff.condition_field, ff.condition_operator, ff.condition_value = profile_field, "eq", Profile.MAJEUR
         ff.save()
         order += 10

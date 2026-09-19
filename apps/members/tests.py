@@ -121,3 +121,112 @@ class ValidateRegistrationTests(TestCase):
     def test_detail_page_offers_validation_modal(self):
         r = self.client.get(f"/contacts/{self.member.pk}/")
         self.assertContains(r, 'id="validateModal"')
+
+
+from django.http import QueryDict  # noqa: E402
+
+from apps.members import filters as FL  # noqa: E402
+from apps.members import layout  # noqa: E402
+from apps.members.forms import MemberForm  # noqa: E402
+from apps.members.models import FieldDefinition, Role  # noqa: E402
+
+
+def layout_post(profile, definitions, **overrides):
+    """Simule le formulaire de l'éditeur : ordre = ordre de la liste, tout est affiché sauf indication contraire."""
+    q = QueryDict(mutable=True)
+    for d in definitions:
+        q.appendlist("ids", str(d.pk))
+        q[f"label_{d.pk}"] = overrides.get(f"label_{d.key}", d.label_for(profile))
+        q[f"section_{d.pk}"] = overrides.get(f"section_{d.key}", d.section_for(profile))
+        if d.key not in overrides.get("hide", []) and d.applies_to(profile):
+            q[f"show_{d.pk}"] = "on"
+        if d.is_sensitive:
+            q[f"sens_{d.pk}"] = "on"
+    return q
+
+
+class ModelEditorTests(TestCase):
+    def setUp(self):
+        F.sync_builtin_fields()
+
+    def test_phone_label_and_role_dropdown(self):
+        self.assertEqual(FieldDefinition.objects.get(key="phone").label, "Téléphone escrimeur.euse")
+        form = MemberForm(profile=Profile.MAJEUR)
+        self.assertEqual(form.fields["phone"].label, "Téléphone escrimeur.euse")
+        self.assertEqual([c[0] for c in form.fields["role"].choices][1:], [r.value for r in Role])
+        self.assertEqual(dict(Role.choices)["MAITRE_ARMES"], "Maître d'arme")
+        self.assertEqual(MemberForm(profile=Profile.MINEUR).fields["email"].label, "Email élève")
+        self.assertEqual(MemberForm(profile=Profile.MAJEUR).fields["email"].label, "Email")
+
+    def test_role_displays_its_label(self):
+        m = Member.objects.create(first_name="A", last_name="B", role=Role.TRESORIER)
+        self.assertEqual(F.display_value(m, "role"), "Trésorier-ère")
+
+    def test_layout_changes_are_per_profile(self):
+        defs = F.all_field_definitions(include_inactive=True)
+        defs.sort(key=lambda d: d.order_for(Profile.MAJEUR))
+        layout.save_layout(Profile.MAJEUR, layout_post(Profile.MAJEUR, defs, label_city="Localité", hide=["licence_number"], section_role="contact"))
+        majeur = MemberForm(profile=Profile.MAJEUR)
+        self.assertEqual(majeur.fields["city"].label, "Localité")
+        self.assertNotIn("licence_number", majeur.fields)
+        self.assertEqual(MemberForm(profile=Profile.MINEUR).fields["city"].label, "Ville")  # Mineur inchangé
+        self.assertIn("licence_number", MemberForm(profile=Profile.MINEUR).fields)
+        contact = dict((title, [bf.name for bf in fields]) for title, fields in majeur.sections())["Contact"]
+        self.assertIn("role", contact)
+
+    def test_order_is_saved_per_profile(self):
+        defs = F.all_field_definitions(include_inactive=True)
+        defs.sort(key=lambda d: d.order_for(Profile.ESSAI))
+        by_key = {d.key: d for d in defs}
+        defs.remove(by_key["city"])
+        defs.insert(defs.index(by_key["first_name"]), by_key["city"])  # ville avant prénom
+        layout.save_layout(Profile.ESSAI, layout_post(Profile.ESSAI, defs))
+        names = list(MemberForm(profile=Profile.ESSAI).fields)
+        self.assertLess(names.index("city"), names.index("first_name"))
+
+    def test_locked_fields_cannot_be_hidden_and_avs_stays_sensitive(self):
+        defs = F.all_field_definitions(include_inactive=True)
+        layout.save_layout(Profile.MAJEUR, layout_post(Profile.MAJEUR, defs, hide=["first_name", "last_name", "status"]))
+        fields = MemberForm(profile=Profile.MAJEUR).fields
+        for key in ("first_name", "last_name", "status"):
+            self.assertIn(key, fields)
+        post = layout_post(Profile.MAJEUR, defs)
+        post.pop(f"sens_{FieldDefinition.objects.get(key='avs_number').pk}", None)
+        layout.save_layout(Profile.MAJEUR, post)
+        self.assertTrue(FieldDefinition.objects.get(key="avs_number").is_sensitive)
+
+    def test_reset_restores_original_model(self):
+        defs = F.all_field_definitions(include_inactive=True)
+        layout.save_layout(Profile.MINEUR, layout_post(Profile.MINEUR, defs, label_city="Localité", hide=["licence_number"]))
+        layout.reset_layout(Profile.MINEUR)
+        form = MemberForm(profile=Profile.MINEUR)
+        self.assertEqual(form.fields["city"].label, "Ville")
+        self.assertIn("licence_number", form.fields)
+        self.assertEqual(form.fields["email"].label, "Email élève")
+
+    def test_choice_filters_accept_labels(self):
+        Member.objects.create(first_name="A", last_name="B", status=MemberStatus.LICENCE, sex="F", role=Role.COACH)
+        Member.objects.create(first_name="C", last_name="D", status=MemberStatus.ACTIF, sex="M")
+        for raw, expected in (("status:eq:Licence uniquement", "A"), ("sex:eq:Féminin", "A"), ("role:eq:Coach", "A"), ("status:eq:ACTIF", "C")):
+            qs, rest = FL.apply_db_filters(Member.objects.all(), FL.parse_filters([raw]))
+            self.assertEqual([m.first_name for m in qs], [expected], raw)
+            self.assertEqual(rest, [])
+
+
+@override_settings(ALLOWED_HOSTS=["localhost", "testserver"])
+class ModelEditorPageTests(TestCase):
+    def test_editor_page_and_save_through_http(self):
+        F.sync_builtin_fields()
+        client = verified_client()
+        for profile in Profile.values:
+            self.assertEqual(client.get(f"/contacts/champs/?profile={profile}").status_code, 200)
+        defs = F.all_field_definitions(include_inactive=True)
+        defs.sort(key=lambda d: d.order_for(Profile.MAJEUR))
+        data = layout_post(Profile.MAJEUR, defs, label_address="Rue et numéro")
+        data["profile"] = Profile.MAJEUR
+        data["action"] = "save_layout"
+        r = client.post("/contacts/champs/", {k: data.getlist(k) for k in data})  # toutes les valeurs (ids multiples)
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(MemberForm(profile=Profile.MAJEUR).fields["address"].label, "Rue et numéro")
+        page = client.get("/contacts/nouveau/?profile=MAJEUR")
+        self.assertContains(page, "Rue et numéro")

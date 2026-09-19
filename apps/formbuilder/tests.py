@@ -67,4 +67,18 @@ class PublicFormTests(TestCase):
 
     def test_committee_only_fields_never_offered(self):
         keys = {ff.field_definition.key for ff in self.fd.fields.all() if ff.field_definition}
-        self.assertFalse(keys & {"status", "tariff_bracket", "family_discount", "role", "notes"})
+        self.assertFalse(keys & {"status", "tariff_bracket", "family_discount", "role", "notes", "licence_number"})
+
+    def test_public_form_shows_new_phone_label_and_no_licence(self):
+        page = self.client.get("/formulaires/public/inscription/")
+        self.assertContains(page, "Téléphone escrimeur.euse")
+        self.assertNotContains(page, "N° de licence")
+        self.assertNotContains(page, "Téléphone élève")
+
+    def test_editing_the_fiche_label_is_reflected_in_the_form(self):
+        from apps.members.models import FieldDefinition
+
+        d = FieldDefinition.objects.get(key="city")
+        d.label = "Localité"
+        d.save()
+        self.assertContains(self.client.get("/formulaires/public/inscription/"), "Localité")

@@ -5,11 +5,13 @@ from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import fields as F
 from . import filters as FL
+from . import layout
 from .forms import ContactGroupForm, FieldDefinitionForm, ImportForm, MassEditForm, MemberForm, ValidateMemberForm
 from .models import (
     ContactGroup,
@@ -167,11 +169,10 @@ def member_detail(request, pk):
     defs = F.all_field_definitions(member.profile)
     sections = {}
     for d in defs:
-        bf = F.BUILTIN_BY_KEY.get(d.key)
-        section = bf.section if bf else "custom"
         if d.key in ("member_id", "status"):
             continue  # affichés dans l'en-tête
-        label = bf.label_for(member.profile) if bf else d.label
+        section = d.section_for(member.profile)
+        label = d.label_for(member.profile)
         value = F.display_value(member, d.key)
         sections.setdefault(section, []).append({"key": d.key, "label": label, "value": value, "sensitive": d.is_sensitive})
     ordered = [(F.SECTION_TITLES[s], sections[s]) for s in ["general", "membership", "contact", "fencing", "training", "custom", "meta"] if s in sections]
@@ -323,18 +324,53 @@ def group_delete(request, pk):
 
 
 def field_manage(request):
-    form = FieldDefinitionForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Champ ajouté. Il apparaît désormais sur les fiches concernées, dans le sélecteur de colonnes, les filtres, les exports et l'éditeur de formulaires.")
-        return redirect("members:fields")
+    """Modèle des fiches membres : mise en page par profil + création de champs personnalisés."""
+    profile = request.GET.get("profile") or request.POST.get("profile") or Profile.MINEUR
+    if profile not in Profile.values:
+        profile = Profile.MINEUR
+    back = f"{reverse('members:fields')}?profile={profile}"
+    add_form = FieldDefinitionForm(initial={"profiles": [profile]})
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "save_layout":
+            layout.save_layout(profile, request.POST)
+            messages.success(request, f"Modèle de la fiche « {Profile(profile).label} » enregistré.")
+            return redirect(back)
+        if action == "reset_layout":
+            layout.reset_layout(profile)
+            messages.success(request, f"Modèle de la fiche « {Profile(profile).label} » rétabli à l'origine.")
+            return redirect(back)
+        if action == "add_field":
+            add_form = FieldDefinitionForm(request.POST)
+            if add_form.is_valid():
+                add_form.save()
+                messages.success(request, "Champ ajouté : il apparaît sur les fiches concernées, dans les colonnes, filtres, exports et l'éditeur de formulaires.")
+                return redirect(back)
+
+    definitions = sorted(FieldDefinition.objects.all(), key=lambda d: (d.order_for(profile), d.label))
+    grouped = {code: [] for code in F.SECTION_TITLES}
+    for d in definitions:
+        bf = F.BUILTIN_BY_KEY.get(d.key)
+        row = {
+            "d": d,
+            "label": d.label_for(profile),
+            "shown": layout.is_shown(d, profile),
+            "locked": d.key in F.LOCKED_FIELDS,
+            "computed": bool(bf and bf.computed),
+            "avs": d.key == "avs_number",
+        }
+        grouped.get(d.section_for(profile), grouped["meta"]).append(row)
     return render(
         request,
         "members/fields.html",
         {
-            "form": form,
-            "builtin": FieldDefinition.objects.filter(is_builtin=True),
+            "profile": profile,
+            "profiles": Profile.choices,
+            "sections": [(code, F.SECTION_TITLES[code], grouped[code]) for code in F.SECTION_TITLES],
+            "section_choices": list(F.SECTION_TITLES.items()),
             "custom": FieldDefinition.objects.filter(is_builtin=False),
+            "add_form": add_form,
         },
     )
 
@@ -354,17 +390,6 @@ def field_delete(request, pk):
     fd = get_object_or_404(FieldDefinition, pk=pk, is_builtin=False)
     fd.delete()
     messages.success(request, f"Champ « {fd.label} » supprimé. Les valeurs déjà saisies restent stockées mais ne sont plus affichées.")
-    return redirect("members:fields")
-
-
-@require_POST
-def field_toggle_sensitive(request, pk):
-    fd = get_object_or_404(FieldDefinition, pk=pk)
-    if fd.key == "avs_number":
-        messages.error(request, "Le N° AVS est toujours traité comme sensible.")
-    else:
-        fd.is_sensitive = not fd.is_sensitive
-        fd.save(update_fields=["is_sensitive"])
     return redirect("members:fields")
 
 
@@ -394,9 +419,11 @@ def member_import(request):
         label_to_key = {}
         for d in F.all_field_definitions(profile):
             label_to_key[d.label.lower()] = d.key
+            label_to_key[d.label_for(profile).lower()] = d.key
             bf = F.BUILTIN_BY_KEY.get(d.key)
-            if bf:
-                for lbl in bf.labels_by_profile.values():
+            if bf:  # libellés d'origine et anciens libellés (ex. exports ClubDesk : « Téléphone élève »)
+                label_to_key[bf.label.lower()] = d.key
+                for lbl in list(bf.labels_by_profile.values()) + list(bf.aliases):
                     label_to_key[lbl.lower()] = d.key
         created, skipped, errors = 0, 0, []
         for i, row in enumerate(reader, start=2):
@@ -460,7 +487,7 @@ def _member_from_import(data, profile, status):
             m.country = reverse_lookup(COUNTRY_LABELS, value) or "CH"
         elif key == "nationality":
             m.nationality = reverse_lookup(NATIONALITY_LABELS, value)
-        elif key in ("title", "sex", "status", "laterality"):
+        elif key in ("title", "sex", "status", "laterality", "role"):
             field = Member._meta.get_field(key)
             m_choices = {c[0].lower(): c[0] for c in field.choices} | {c[1].lower(): c[0] for c in field.choices}
             setattr(m, key, m_choices.get(value.lower(), "") if value else "")

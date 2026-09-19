@@ -14,6 +14,7 @@ from .models import (
     Laterality,
     MemberStatus,
     Profile,
+    Role,
     Sex,
     Title,
 )
@@ -35,6 +36,7 @@ class BuiltinField:
     computed: bool = False  # lecture seule (calculé)
     sort_order: int = 100
     help_text: str = ""
+    aliases: list = field(default_factory=list)  # anciens libellés, reconnus à l'import CSV
 
     def label_for(self, profile):
         return self.labels_by_profile.get(profile, self.label)
@@ -62,14 +64,14 @@ BUILTIN_FIELDS = [
     BuiltinField("exit_date", "Sortie", "DATE", MIN_MAJ, "membership", sort_order=120),
     BuiltinField("status", "Statut", "SELECT", ALL, "membership", _choices(MemberStatus), sort_order=130),
     BuiltinField("member_id", "ID", "TEXT", ALL, "membership", computed=True, sort_order=140),
-    BuiltinField("role", "Rôle", "TEXT", MIN_MAJ, "membership", sort_order=150),
+    BuiltinField("role", "Rôle", "SELECT", MIN_MAJ, "membership", _choices(Role), sort_order=150),
     BuiltinField("groups", "Groupe", "MULTISELECT", ALL, "membership", sort_order=160),
     # --- Escrime ---
     BuiltinField("avs_number", "N° AVS", "TEXT", MIN_MAJ, "fencing", sensitive=True, sort_order=200, help_text="Format 756.XXXX.XXXX.XX"),
     BuiltinField("laterality", "Latéralité", "SELECT", MIN_MAJ, "fencing", _choices(Laterality), sort_order=210),
     BuiltinField("licence_number", "N° de licence", "TEXT", MIN_MAJ, "fencing", sort_order=220),
     # --- Contact ---
-    BuiltinField("phone", "Téléphone élève", "PHONE", ALL, "contact", sort_order=300),
+    BuiltinField("phone", "Téléphone escrimeur.euse", "PHONE", ALL, "contact", sort_order=300, aliases=["Téléphone élève"]),
     BuiltinField("phone_parent1", "Téléphone parent 1", "PHONE", [Profile.MINEUR], "contact", sort_order=310),
     BuiltinField("phone_parent2", "Téléphone parent 2", "PHONE", [Profile.MINEUR], "contact", sort_order=320),
     BuiltinField(
@@ -99,7 +101,10 @@ BUILTIN_BY_KEY = {f.key: f for f in BUILTIN_FIELDS}
 NOT_IN_PUBLIC_FORMS = {
     "status", "member_id", "role", "entry_date", "exit_date", "tariff_bracket", "family_discount",
     "computed_amount", "invoice_status_label", "notes", "created_at", "category", "groups",
+    "licence_number",  # attribué par le club / la fédération, pas saisi par l'inscrit
 }
+# Champs qu'aucun modèle de fiche ne peut masquer (la fiche ne fonctionnerait plus sans eux).
+LOCKED_FIELDS = {"first_name", "last_name", "status"}
 
 # Colonnes par défaut de la liste (décision section 4) — le N° AVS n'y figure jamais par défaut.
 DEFAULT_LIST_COLUMNS = ["last_name", "first_name", "address"]
@@ -107,8 +112,8 @@ DEFAULT_LIST_COLUMNS = ["last_name", "first_name", "address"]
 SECTION_TITLES = {
     "general": "Identité et adresse",
     "membership": "Adhésion",
-    "fencing": "Escrime",
     "contact": "Contact",
+    "fencing": "Escrime",
     "training": "Entraînement",
     "finance": "Finance",
     "meta": "Divers",
@@ -117,11 +122,16 @@ SECTION_TITLES = {
 
 
 def sync_builtin_fields():
-    """Crée/met à jour les `FieldDefinition` natifs à partir de ce registre (idempotent)."""
+    """
+    Crée les `FieldDefinition` natifs manquants à partir de ce registre (idempotent).
+
+    Une fois créé, un champ appartient à la base : libellé, profils, ordre et sections sont
+    modifiables par le comité (« Modèle des fiches ») et ne sont JAMAIS écrasés ici.
+    """
     from .models import FieldDefinition
 
     for f in BUILTIN_FIELDS:
-        FieldDefinition.objects.update_or_create(
+        obj, created = FieldDefinition.objects.get_or_create(
             key=f.key,
             defaults={
                 "label": f.label,
@@ -131,12 +141,34 @@ def sync_builtin_fields():
                 "is_sensitive": f.sensitive,
                 "sort_order": f.sort_order,
                 "help_text": f.help_text,
+                "section": f.section,
+                "layout": {p: {"label": lbl} for p, lbl in f.labels_by_profile.items()},
             },
         )
+        if created:
+            continue
+        changed = []
+        if obj.field_type != f.field_type:
+            obj.field_type = f.field_type
+            changed.append("field_type")
+        if not obj.is_builtin:
+            obj.is_builtin = True
+            changed.append("is_builtin")
+        if not obj.section:
+            obj.section = f.section
+            changed.append("section")
+        if f.key == "avs_number" and not obj.is_sensitive:
+            obj.is_sensitive = True
+            changed.append("is_sensitive")
+        if changed:
+            obj.save(update_fields=changed)
 
 
 def all_field_definitions(profile=None, include_inactive=False):
-    """Liste ordonnée des définitions (natives + personnalisées), filtrée par profil si demandé."""
+    """
+    Liste des définitions (natives + personnalisées). Avec un `profil` : seulement celles qui
+    s'y appliquent, triées selon la mise en page propre à ce profil.
+    """
     from .models import FieldDefinition
 
     qs = FieldDefinition.objects.all()
@@ -145,16 +177,15 @@ def all_field_definitions(profile=None, include_inactive=False):
     defs = list(qs)
     if profile:
         defs = [d for d in defs if d.applies_to(profile)]
+    defs.sort(key=lambda d: (d.order_for(profile), d.label))
     return defs
 
 
 def field_label(key, profile=None):
-    if key in BUILTIN_BY_KEY:
-        return BUILTIN_BY_KEY[key].label_for(profile) if profile else BUILTIN_BY_KEY[key].label
     from .models import FieldDefinition
 
     d = FieldDefinition.objects.filter(key=key).first()
-    return d.label if d else key
+    return d.label_for(profile) if d else key
 
 
 def display_value(member, key):
@@ -183,7 +214,7 @@ def display_value(member, key):
         if key in ("birth_date", "entry_date", "exit_date"):
             v = getattr(member, key)
             return v.strftime("%d.%m.%Y") if v else ""
-        if key in ("title", "sex", "status", "laterality"):
+        if key in ("title", "sex", "status", "laterality", "role"):
             getter = getattr(member, f"get_{key}_display", None)
             return getter() if getter and getattr(member, key) else ""
         value = getattr(member, key, "")

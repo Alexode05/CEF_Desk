@@ -18,7 +18,6 @@ urlpatterns = [
     path("champs/", views.field_manage, name="fields"),
     path("champs/<int:pk>/modifier/", views.field_edit, name="field_edit"),
     path("champs/<int:pk>/supprimer/", views.field_delete, name="field_delete"),
-    path("champs/<int:pk>/sensible/", views.field_toggle_sensitive, name="field_toggle_sensitive"),
     path("<int:pk>/", views.member_detail, name="detail"),
     path("<int:pk>/modifier/", views.member_edit, name="edit"),
     path("<int:pk>/supprimer/", views.member_delete, name="delete"),

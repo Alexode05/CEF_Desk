@@ -52,11 +52,23 @@ def describe(flt):
     return f"{label} {op} « {flt['value']} »"
 
 
+def _choice_code(key, value):
+    """Les listes à choix (statut, sexe, rôle, pays…) stockent un code : « Licence uniquement » -> LICENCE."""
+    bf = F.BUILTIN_BY_KEY.get(key)
+    if bf and bf.choices:
+        for code, label in bf.choices:
+            if value.strip().lower() in (str(label).lower(), str(code).lower()):
+                return str(code)
+    return value
+
+
 def apply_db_filters(qs, filters):
     """Applique en base ce qui peut l'être ; renvoie (qs, filtres restants à appliquer en Python)."""
     remaining = []
     for flt in filters:
         key, op, value = flt["key"], flt["op"], flt["value"]
+        if key in DB_FIELDS and op in ("eq", "ne"):
+            value = _choice_code(key, value)
         lookup = None
         if key in DB_FIELDS:
             lookup = key
