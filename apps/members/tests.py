@@ -61,3 +61,63 @@ class ServicesTests(TestCase):
         self.assertEqual(Member.objects.non_members().count(), 1)
         self.assertEqual(Member.objects.companies().count(), 1)
         self.assertEqual(Member.objects.companies().first().member_id, "sponsor-sa")
+
+
+from decimal import Decimal  # noqa: E402
+
+from django.contrib.auth.models import User  # noqa: E402
+from django.test import Client, override_settings  # noqa: E402
+from django_otp import DEVICE_ID_SESSION_KEY  # noqa: E402
+from django_otp.plugins.otp_totp.models import TOTPDevice  # noqa: E402
+
+from apps.members.models import TariffBracket, TrainingMode  # noqa: E402
+
+
+def verified_client(username="comite"):
+    """Client de test connecté ET vérifié par A2F (le middleware exige les deux)."""
+    user = User.objects.create_user(username, password="x")
+    device = TOTPDevice.objects.create(user=user, name="test", confirmed=True)
+    client = Client(HTTP_HOST="localhost")
+    client.force_login(user)
+    session = client.session
+    session[DEVICE_ID_SESSION_KEY] = device.persistent_id
+    session.save()
+    return client
+
+
+@override_settings(ALLOWED_HOSTS=["localhost", "testserver"])
+class ValidateRegistrationTests(TestCase):
+    def setUp(self):
+        F.sync_builtin_fields()
+        self.client = verified_client()
+        self.mode = TrainingMode.objects.create(name="2 jours", days_per_week=2)
+        self.bracket = TariffBracket.objects.create(name="Dès 20 ans")
+        self.member = Member.objects.create(first_name="Sam", last_name="Petit", profile=Profile.MAJEUR, status=MemberStatus.EN_ATTENTE)
+
+    def test_validation_requires_bracket_and_stays_pending(self):
+        r = self.client.post(f"/contacts/{self.member.pk}/valider/", {})
+        self.assertEqual(r.status_code, 302)
+        self.member.refresh_from_db()
+        self.assertEqual(self.member.status, MemberStatus.EN_ATTENTE)
+
+    def test_validation_sets_billing_info_and_activates(self):
+        self.client.post(
+            f"/contacts/{self.member.pk}/valider/",
+            {"tariff_bracket": self.bracket.pk, "training_mode": self.mode.pk, "family_discount": "on"},
+        )
+        self.member.refresh_from_db()
+        self.assertEqual(self.member.status, MemberStatus.ACTIF)
+        self.assertEqual(self.member.tariff_bracket, self.bracket)
+        self.assertEqual(self.member.training_mode, self.mode)
+        self.assertTrue(self.member.family_discount)
+        self.assertIsNotNone(self.member.entry_date)
+
+    def test_trial_validation_needs_no_billing_info(self):
+        trial = Member.objects.create(first_name="Tom", last_name="Essai", profile=Profile.ESSAI, status=MemberStatus.EN_ATTENTE)
+        self.client.post(f"/contacts/{trial.pk}/valider/")
+        trial.refresh_from_db()
+        self.assertEqual(trial.status, MemberStatus.ESSAI)
+
+    def test_detail_page_offers_validation_modal(self):
+        r = self.client.get(f"/contacts/{self.member.pk}/")
+        self.assertContains(r, 'id="validateModal"')

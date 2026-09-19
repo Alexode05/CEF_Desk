@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from . import fields as F
 from . import filters as FL
-from .forms import ContactGroupForm, FieldDefinitionForm, ImportForm, MassEditForm, MemberForm
+from .forms import ContactGroupForm, FieldDefinitionForm, ImportForm, MassEditForm, MemberForm, ValidateMemberForm
 from .models import (
     ContactGroup,
     ContactKind,
@@ -176,10 +176,15 @@ def member_detail(request, pk):
         sections.setdefault(section, []).append({"key": d.key, "label": label, "value": value, "sensitive": d.is_sensitive})
     ordered = [(F.SECTION_TITLES[s], sections[s]) for s in ["general", "membership", "contact", "fencing", "training", "custom", "meta"] if s in sections]
     finance = sections.get("finance", [])
+    validate_form = None
+    if member.status == MemberStatus.EN_ATTENTE and member.profile != Profile.ESSAI:
+        validate_form = ValidateMemberForm(
+            initial={"training_mode": member.training_mode, "tariff_bracket": member.tariff_bracket, "family_discount": member.family_discount}
+        )
     return render(
         request,
         "members/detail.html",
-        {"member": member, "sections": ordered, "finance": finance, "invoices": member.invoices.all()[:20]},
+        {"member": member, "sections": ordered, "finance": finance, "invoices": member.invoices.all()[:20], "validate_form": validate_form},
     )
 
 
@@ -238,15 +243,18 @@ def member_validate(request, pk):
     if member.profile == Profile.ESSAI:
         member.status = MemberStatus.ESSAI
     else:
-        if not member.tariff_bracket_id:
-            messages.warning(
-                request,
-                "Renseignez la tranche tarifaire (et la réduction famille le cas échéant) avant de valider : "
-                "elles déterminent le montant de la cotisation.",
-            )
-            return redirect("members:edit", pk=pk)
+        form = ValidateMemberForm(request.POST)
+        if not form.is_valid():
+            problems = "; ".join(f"{form.fields[k].label} : {' '.join(v)}" for k, v in form.errors.items())
+            messages.error(request, f"Validation impossible — {problems}")
+            return redirect(member)
+        cleaned = form.cleaned_data
+        member.tariff_bracket = cleaned["tariff_bracket"]
+        member.family_discount = cleaned["family_discount"]
+        if cleaned.get("training_mode"):
+            member.training_mode = cleaned["training_mode"]
+        member.entry_date = cleaned.get("entry_date") or member.entry_date or timezone.localdate()
         member.status = MemberStatus.ACTIF
-        member.entry_date = member.entry_date or timezone.localdate()
     member.save()
     messages.success(request, f"Inscription de {member.display_name} validée — statut « {member.get_status_display()} ».")
     return redirect(member)

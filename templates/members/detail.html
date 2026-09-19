@@ -1,17 +1,22 @@
 {% extends "base.html" %}
+{% load crispy_forms_tags %}
 {% block title %}{{ member.display_name }}{% endblock %}
 {% block page_title %}{{ member.display_name }} <span class="badge-status status-{{ member.status }} ms-2 align-middle">{{ member.get_status_display }}</span>{% endblock %}
 {% block page_subtitle %}<p class="app-subtitle">{{ member.get_profile_display }} · ID <code>{{ member.member_id }}</code>{% if member.category %} · Catégorie <strong>{{ member.category }}</strong>{% endif %}{% if member.age is not None %} · {{ member.age }} ans{% endif %}</p>{% endblock %}
 {% block page_actions %}
 {% if member.status == 'EN_ATTENTE' %}
-<form method="post" action="{% url 'members:validate' member.pk %}" data-confirm="Valider l'inscription de {{ member.display_name }} ?">{% csrf_token %}<button class="btn btn-success" type="submit"><i class="bi bi-check2-circle"></i> Valider l'inscription</button></form>
+  {% if validate_form %}
+  <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#validateModal"><i class="bi bi-check2-circle"></i> Valider l'inscription</button>
+  {% else %}
+  <form method="post" action="{% url 'members:validate' member.pk %}" data-confirm="Valider le cours d'essai de {{ member.display_name }} ?">{% csrf_token %}<button class="btn btn-success" type="submit"><i class="bi bi-check2-circle"></i> Valider l'inscription</button></form>
+  {% endif %}
 {% endif %}
 <a class="btn btn-outline-secondary" href="{% url 'members:list' %}"><i class="bi bi-arrow-left"></i> Liste</a>
 <a class="btn btn-primary" href="{% url 'members:edit' member.pk %}"><i class="bi bi-pencil"></i> Modifier</a>
 {% endblock %}
 {% block content %}
 {% if member.status == 'EN_ATTENTE' and member.profile != 'ESSAI' %}
-<div class="alert alert-info d-flex gap-2"><i class="bi bi-info-circle-fill mt-1"></i><div>Inscription en attente de validation. Avant de valider, complétez dans l'onglet <strong>Finance</strong> la tranche tarifaire et, le cas échéant, la réduction famille (2ᵉ enfant) et le statut étudiant — ces informations ne sont pas demandées dans le formulaire public.</div></div>
+<div class="alert alert-info d-flex gap-2"><i class="bi bi-info-circle-fill mt-1"></i><div>Inscription en attente de validation. Cliquez sur <strong>Valider l'inscription</strong> : vous choisirez la tranche tarifaire (P'tit Zorros, moins de 20 ans, dès 20 ans, étudiant) et la réduction famille éventuelle, informations qui ne sont pas demandées dans le formulaire public.</div></div>
 {% endif %}
 
 <ul class="nav nav-tabs mb-3" role="tablist">
@@ -87,8 +92,44 @@
   {% endif %}
 </div>
 
+{% if validate_form %}
+<div class="modal fade" id="validateModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <form method="post" action="{% url 'members:validate' member.pk %}">{% csrf_token %}
+    <div class="modal-header"><h5 class="modal-title">Valider l'inscription de {{ member.display_name }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="small text-muted">Ces informations ne sont pas demandées dans le formulaire public : elles déterminent le montant de la cotisation.</p>
+      {{ validate_form.training_mode|as_crispy_field }}
+      {{ validate_form.tariff_bracket|as_crispy_field }}
+      {{ validate_form.family_discount|as_crispy_field }}
+      {{ validate_form.entry_date|as_crispy_field }}
+      <div class="alert alert-light border small mb-0">Cotisation calculée : <strong id="validate-amount">—</strong></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Annuler</button><button class="btn btn-success" type="submit"><i class="bi bi-check2-circle"></i> Valider et activer le membre</button></div>
+  </form>
+</div></div></div>
+{% endif %}
+
 <div class="mt-4 d-flex justify-content-between align-items-center small text-muted">
   <span>Créée le {{ member.created_at|date:"d.m.Y H:i" }}{% if member.created_by %} par {{ member.created_by.get_full_name|default:member.created_by.username }}{% endif %} · modifiée le {{ member.updated_at|date:"d.m.Y H:i" }}</span>
   <a class="text-danger" href="{% url 'members:delete' member.pk %}"><i class="bi bi-trash"></i> Supprimer définitivement cette fiche</a>
 </div>
+{% endblock %}
+{% block scripts %}
+{% if validate_form %}
+<script>
+(function () {
+  var mode = document.getElementById("id_training_mode"), bracket = document.getElementById("id_tariff_bracket"),
+      fam = document.getElementById("id_family_discount"), out = document.getElementById("validate-amount"), grid = null;
+  if (!out) return;
+  function refresh() {
+    if (!grid) return;
+    var amt = grid[(mode.value || "") + ":" + (bracket.value || "")];
+    if (amt === undefined || amt === null) { out.textContent = bracket.value && mode.value ? "tarif non défini dans le barème" : "choisir modalité et tranche"; return; }
+    out.textContent = "CHF " + Math.max(parseFloat(amt) - (fam.checked ? 100 : 0), 0).toFixed(2);
+  }
+  fetch("{% url 'billing:tariff_grid_json' %}", { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (d) { grid = d; refresh(); });
+  [mode, bracket, fam].forEach(function (el) { if (el) el.addEventListener("change", refresh); });
+})();
+</script>
+{% endif %}
 {% endblock %}

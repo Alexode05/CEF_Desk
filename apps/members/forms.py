@@ -239,6 +239,20 @@ class FieldDefinitionForm(forms.ModelForm):
         return obj
 
 
+class ValidateMemberForm(forms.Form):
+    """Validation d'une inscription par le comité : infos de facturation non demandées dans le formulaire public."""
+
+    training_mode = forms.ModelChoiceField(
+        label="Modalité d'entraînement", queryset=TrainingMode.objects.filter(is_active=True), required=False,
+        help_text="Choisie par la personne à l'inscription ; modifiable ici.",
+    )
+    tariff_bracket = forms.ModelChoiceField(label="Tranche tarifaire", queryset=TariffBracket.objects.all(), empty_label="— choisir —")
+    family_discount = forms.BooleanField(
+        label="Réduction famille (2ᵉ enfant et suivants) : -100 CHF", required=False,
+    )
+    entry_date = forms.DateField(label="Date d'entrée", widget=DATE_INPUT, required=False, help_text="Vide = aujourd'hui.")
+
+
 class MassEditForm(forms.Form):
     """Modification de masse : une action appliquée à tous les contacts sélectionnés."""
 

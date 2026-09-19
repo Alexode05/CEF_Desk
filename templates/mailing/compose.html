@@ -17,7 +17,7 @@
     {% if preview is not None %}
     <div class="card">
       <div class="card-header">{{ preview|length }} destinataire(s)</div>
-      <form method="post" enctype="multipart/form-data">{% csrf_token %}
+      <form method="post" enctype="multipart/form-data" data-confirm="Envoyer cet email maintenant à {{ preview|length }} destinataire(s) ?">{% csrf_token %}
         <input type="hidden" name="mailing_list" value="{{ form.mailing_list.value }}">
         <input type="hidden" name="subject" value="{{ form.subject.value }}">
         <textarea name="body" hidden>{{ form.body.value }}</textarea>
@@ -30,7 +30,7 @@
         <input type="hidden" name="exclude_ids" id="exclude-ids" value="">
         <div class="card-footer bg-transparent">
           {% if form.attachment.value %}<p class="small text-warning mb-2"><i class="bi bi-exclamation-triangle"></i> Re-sélectionnez la pièce jointe ci-dessous (elle ne peut pas être conservée entre les deux étapes).</p><input class="form-control form-control-sm mb-2" type="file" name="attachment">{% else %}<input type="hidden" name="attachment_placeholder">{% endif %}
-          <button class="btn btn-primary" type="submit" {% if not preview %}disabled{% endif %} onclick="return confirm('Envoyer cet email maintenant ?')"><i class="bi bi-send"></i> Envoyer</button>
+          <button class="btn btn-primary" type="submit" {% if not preview %}disabled{% endif %}><i class="bi bi-send"></i> Envoyer</button>
         </div>
       </form>
     </div>
