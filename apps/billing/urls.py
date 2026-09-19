@@ -13,6 +13,7 @@ urlpatterns = [
     path("factures/<int:pk>/regenerer/", views.invoice_regenerate, name="invoice_regenerate"),
     path("factures/<int:pk>/payee/", views.invoice_toggle_paid, name="invoice_toggle_paid"),
     path("factures/<int:pk>/annuler/", views.invoice_cancel, name="invoice_cancel"),
+    path("factures/manuelle/", views.invoice_manual, name="invoice_manual"),
     path("factures/nouvelle/<int:member_pk>/", views.invoice_create, name="invoice_create"),
     path("lots/", views.batch_list, name="batch_list"),
     path("lots/nouveau/", views.batch_create, name="batch_create"),

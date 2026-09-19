@@ -17,9 +17,12 @@
       <div class="card-body">
         <dl class="row mb-0">
           <dt class="col-sm-4 text-muted fw-normal small">Motif</dt><dd class="col-sm-8">{{ invoice.description }}</dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Type</dt><dd class="col-sm-8">{{ invoice.get_kind_display }}</dd>
+          {% if not invoice.is_manual %}
           <dt class="col-sm-4 text-muted fw-normal small">Modalité / tranche</dt><dd class="col-sm-8">{{ invoice.training_mode_label|default:"—" }} / {{ invoice.bracket_label|default:"—" }}</dd>
           <dt class="col-sm-4 text-muted fw-normal small">Montant de base</dt><dd class="col-sm-8">CHF {{ invoice.base_amount|floatformat:2 }}</dd>
           {% if invoice.family_discount %}<dt class="col-sm-4 text-muted fw-normal small">Réduction famille</dt><dd class="col-sm-8">- CHF {{ invoice.family_discount|floatformat:2 }}</dd>{% endif %}
+          {% endif %}
           <dt class="col-sm-4 text-muted fw-normal small">Total</dt><dd class="col-sm-8 fw-bold">CHF {{ invoice.amount|floatformat:2 }}</dd>
           <dt class="col-sm-4 text-muted fw-normal small">Émise / échéance</dt><dd class="col-sm-8">{{ invoice.issue_date|date:"d.m.Y" }} / <span class="{% if invoice.is_overdue %}text-danger fw-semibold{% endif %}">{{ invoice.due_date|date:"d.m.Y" }}</span></dd>
           <dt class="col-sm-4 text-muted fw-normal small">Référence de paiement</dt><dd class="col-sm-8"><code>{{ invoice.reference }}</code></dd>

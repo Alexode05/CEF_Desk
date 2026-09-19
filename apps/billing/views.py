@@ -11,7 +11,7 @@ from apps.dashboard.models import ClubSettings
 from apps.members.models import Member, TariffBracket, TrainingMode
 
 from . import services
-from .forms import BatchCreateForm, MarkPaidForm
+from .forms import BatchCreateForm, ManualInvoiceForm, MarkPaidForm
 from .models import EmailLog, Invoice, InvoiceBatch, InvoiceStatus, Tariff
 
 
@@ -115,6 +115,27 @@ def invoice_create(request, member_pk):
         messages.success(request, f"Facture {invoice.number} générée et archivée. Vous pouvez la relire puis l'envoyer.")
         return redirect(invoice)
     return render(request, "billing/invoice_create.html", {"member": member, "preview": preview, "club": club})
+
+
+def invoice_manual(request):
+    """Facture indépendante créée à la main : choix du destinataire, montant, motif."""
+    initial = {}
+    if request.GET.get("member", "").isdigit():
+        initial["member"] = int(request.GET["member"])
+    form = ManualInvoiceForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        data = form.cleaned_data
+        try:
+            invoice = services.create_manual_invoice(
+                data["member"], data["amount"], data["description"], user=request.user,
+                issue_date=data["issue_date"], due_date=data["due_date"], recipient_email=data.get("recipient_email", ""),
+            )
+        except services.BillingError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f"Facture {invoice.number} créée et archivée. Relisez le PDF puis envoyez-la depuis cette page.")
+            return redirect(invoice)
+    return render(request, "billing/invoice_manual.html", {"form": form, "club": ClubSettings.load()})
 
 
 @require_POST

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Facture manuelle{% endblock %}
+{% block page_title %}Facture manuelle{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Facture indépendante, hors barème des cotisations : vous choisissez le destinataire, le montant et le motif. Le PDF avec QR-facture est généré et archivé comme les autres, l'envoi par email se fait ensuite.</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'billing:index' %}"><i class="bi bi-arrow-left"></i> Comptabilité</a>{% endblock %}
+{% block content %}
+{% if club.bank_details_are_placeholder %}<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle-fill"></i> QR-facture générée avec les coordonnées bancaires fictives de développement.</div>{% endif %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card"><div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        <label class="form-label" for="member-filter">Rechercher le destinataire</label>
+        <input class="form-control mb-2" id="member-filter" type="search" placeholder="Tapez un nom, un prénom ou un ID pour filtrer la liste…" autocomplete="off">
+        {{ form.member|as_crispy_field }}
+        <div class="row">
+          <div class="col-md-5">{{ form.amount|as_crispy_field }}</div>
+          <div class="col-md-7">{{ form.description|as_crispy_field }}</div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">{{ form.issue_date|as_crispy_field }}</div>
+          <div class="col-md-6">{{ form.due_date|as_crispy_field }}</div>
+        </div>
+        {{ form.recipient_email|as_crispy_field }}
+        <button class="btn btn-primary" type="submit"><i class="bi bi-file-earmark-pdf"></i> Créer la facture (PDF + archivage)</button>
+        <a class="btn btn-link" href="{% url 'billing:index' %}">Annuler</a>
+      </form>
+    </div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card"><div class="card-body small text-muted">
+      <p><strong>Le destinataire n'est pas dans la liste ?</strong> Créez d'abord sa fiche : <a href="{% url 'members:create' %}">Nouveau contact</a> (choisissez le type « Entreprise » pour un sponsor ou une société).</p>
+      <p class="mb-0">La facture reprend le nom et l'adresse de la fiche du contact ; le numéro suit la même série que les cotisations. Le trésorier est en copie de l'email d'envoi.</p>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  // Filtre de la liste des destinataires (les options non correspondantes sont masquées).
+  var input = document.getElementById("member-filter"), select = document.getElementById("id_member");
+  if (!input || !select) return;
+  var options = Array.prototype.slice.call(select.options);
+  input.addEventListener("input", function () {
+    var q = input.value.toLowerCase().trim(), firstMatch = null;
+    options.forEach(function (o) {
+      if (!o.value) return;
+      var show = !q || o.text.toLowerCase().indexOf(q) >= 0;
+      o.hidden = !show; o.disabled = !show;
+      if (show && !firstMatch) firstMatch = o;
+    });
+    if (q && firstMatch && (select.selectedOptions[0] || {}).disabled) select.value = firstMatch.value;
+  });
+})();
+</script>
+{% endblock %}

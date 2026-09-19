@@ -18,7 +18,7 @@ from apps.documents.services import store_generated_file
 from apps.members import services as member_services
 from apps.members.models import Member
 
-from .models import EmailLog, Invoice, InvoiceBatch, InvoiceStatus
+from .models import EmailLog, Invoice, InvoiceBatch, InvoiceKind, InvoiceStatus
 from .pdf import render_invoice_pdf
 
 
@@ -110,6 +110,52 @@ def create_invoice_for_member(member: Member, user=None, batch: InvoiceBatch = N
     return invoice
 
 
+@transaction.atomic
+def create_manual_invoice(member: Member, amount, description, user=None, issue_date=None, due_date=None, recipient_email=""):
+    """
+    Facture indépendante (hors barème) : destinataire, montant et motif saisis à la main.
+    Même numérotation, même référence de paiement, même PDF/QR-facture et même archivage que les cotisations.
+    """
+    club = ClubSettings.load()
+    issue_date = issue_date or timezone.localdate()
+    due_date = due_date or issue_date + timedelta(days=club.invoice_due_days)
+    amount = Decimal(amount).quantize(Decimal("0.01"))
+    if amount <= 0:
+        raise BillingError("Le montant doit être supérieur à zéro.")
+    description = " ".join((description or "").split())[:140]
+    if not description:
+        raise BillingError("Le motif de la facture est obligatoire.")
+    if due_date < issue_date:
+        raise BillingError("L'échéance ne peut pas précéder la date d'émission.")
+
+    season = club.current_season_label(issue_date)
+    season_end_year = int(season.split("-")[1])
+    invoice = Invoice(
+        number=next_invoice_number(season_end_year),
+        kind=InvoiceKind.MANUELLE,
+        member=member,
+        season=season,
+        base_amount=amount,
+        family_discount=Decimal("0.00"),
+        amount=amount,
+        description=description,
+        debtor_name=member.display_name[:70],
+        debtor_street=member.address[:70],
+        debtor_postal_code=member.postal_code[:16],
+        debtor_city=member.city[:35],
+        debtor_country=member.country or "CH",
+        recipient_email=recipient_email or member.primary_email or "",
+        issue_date=issue_date,
+        due_date=due_date,
+        created_by=user,
+    )
+    invoice.save()
+    invoice.reference = make_reference(club, invoice.pk, season_end_year)
+    invoice.save(update_fields=["reference"])
+    generate_pdf(invoice, user=user)
+    return invoice
+
+
 def generate_pdf(invoice: Invoice, user=None):
     """(Re)génère le PDF, l'attache à la facture et l'archive dans Club/Factures/<saison>/."""
     club = ClubSettings.load()
@@ -129,10 +175,21 @@ def generate_pdf(invoice: Invoice, user=None):
 
 def _render_template(text, invoice):
     club = ClubSettings.load()
+    if invoice.is_manual:
+        title = objet = invoice.description
+    else:
+        title = f"Cotisation {invoice.season}"
+        objet = f"la cotisation de la saison {invoice.season} de {invoice.member.display_name}"
+        if invoice.training_mode_label:
+            objet += f" ({invoice.training_mode_label})"
     values = {
         "saison": invoice.season,
         "prenom": invoice.member.first_name,
         "nom": invoice.member.last_name,
+        "destinataire": invoice.member.display_name,
+        "titre": title,
+        "objet": objet,
+        "description": invoice.description,
         "modalite": invoice.training_mode_label or "—",
         "montant": f"{invoice.amount:.2f}",
         "echeance": invoice.due_date.strftime("%d.%m.%Y"),

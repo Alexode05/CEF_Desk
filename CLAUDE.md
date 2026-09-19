@@ -16,9 +16,9 @@ Si une décision de conception change en cours de développement, mettre à jour
 
 *(Section à tenir à jour à la fin de chaque session de travail significative.)*
 
-**Dernière mise à jour : 19 septembre 2026** (code poussé sur GitHub `Alexode05/CEF_Desk`, branche `main`). Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
+**Dernière mise à jour : 19 septembre 2026, 2ᵉ session** (code poussé sur GitHub `Alexode05/CEF_Desk`, branche `main`). Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Retours d'Alex du 19.09 traités : voir « Évolutions demandées par Alex » ci-dessous. Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
 
-Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (21 tests, verts).
+Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (41 tests, verts).
 
 | Module | État | Où |
 |---|---|---|
@@ -32,6 +32,13 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 | Export CSV 3 variantes (Excel Windows / macOS / Numbers), AVS exclu sauf choix explicite | Terminé (ouverture réelle dans Excel/Numbers **non testée** — à faire par Alex) | `apps/exports` |
 | Sauvegardes : commande `backup` (BD + media, rétention 30 j) à planifier | Terminé (planification à faire chez l'hébergeur) | `apps/dashboard/management/commands/backup.py` |
 
+**Évolutions demandées par Alex (19.09.2026) — faites :**
+- Paramètres du club : adresses email président-e, vice-président-e et vérificateur des comptes en plus du trésorier et du secrétariat ; accès à l'éditeur **Modèle des fiches membres** (`apps/members/layout.py`, vue `members:fields`). Libellé, section, ordre, présence et caractère sensible de chaque champ, **par profil** ; les définitions de champs vivent en base (`FieldDefinition.layout` / `section` / `profiles`) et `sync_builtin_fields` ne les écrase jamais.
+- Facture manuelle indépendante (destinataire, montant, motif) : `billing.services.create_manual_invoice`, `Invoice.kind`. Textes d'email de facture/relance rendus génériques (variables `{titre}`, `{objet}`, `{destinataire}`).
+- Formulaires : numéro de licence retiré ; « Téléphone élève » → « Téléphone escrimeur.euse ».
+- Rôle : liste déroulante de 10 valeurs (anciens textes libres conservés dans les remarques de la fiche, ex. « Direction » de Marc Favre).
+- Bugs : ligne de la liste non cliquable (script ignorant les formulaires), « Valider l'inscription » sans effet apparent (remplacé par une fenêtre tranche/modalité/réduction famille), suppression des listes de diffusion (bouton ajouté à la liste). Les confirmations utilisent une fenêtre Bootstrap (`data-confirm`), plus `window.confirm`.
+
 **Points à traiter avec Alex (ne pas trancher seul) :**
 - **Validation SIX** : le portail officiel https://validation.iso-payments.ch exige un compte utilisateur → Alex doit s'y inscrire et déposer `docs/exemples/exemple-qr-facture.pdf`. En attendant, `python manage.py check_qrbill` décode le QR du PDF réel et le vérifie contre la norme (passe : adresses structurées obligatoires IG 2.3, référence QR valide, 46 mm, position OK).
 - Montants des 12 tarifs (barème vide → facturation bloquée pour les membres concernés).
@@ -40,6 +47,10 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 - Un seul niveau de relance (répété tous les 30 jours tant que la facture est impayée) ; le trésorier est en Cc des relances comme des factures.
 - Texte des emails de facture/relance : modifiable dans Paramètres du club (variables `{prenom}`, `{nom}`, `{saison}`, `{montant}`, `{echeance}`, `{numero}`).
 - Ouverture réelle des 3 variantes CSV dans Excel Windows, Numbers et un tableur mobile à tester par Alex.
+- Libellé exact « Téléphone escrimeur.euse » (écriture inclusive avec point) et « Email élève » du profil Mineur, resté inchangé : modifiables sans code dans « Modèle des fiches ». « Maître d'arme » est écrit comme dans la liste fournie (usage courant : « Maître d'armes »).
+- Rôle = une seule valeur par personne (liste déroulante) : une personne à la fois Tireur-euse et Trésorier-ère doit en choisir une. Multi-rôles possible si besoin.
+- Les adresses email président-e / vice-président-e / vérificateur des comptes sont enregistrées mais **pas encore utilisées** automatiquement (aucune notification ni Cc) : à préciser si elles doivent recevoir des copies.
+- Facture manuelle : le destinataire doit exister dans les contacts (créer une fiche « Entreprise » pour un sponsor).
 
 **Bugs connus / limites :** aucun bug bloquant connu. HTTPS local non activé (réglages HTTPS prêts via `DJANGO_FORCE_HTTPS=True` pour la production). Réinitialisation de l'A2F d'un utilisateur : via l'administration technique `/admin/` (supprimer son appareil TOTP).
 
@@ -69,6 +80,8 @@ Ce projet traite des données personnelles sensibles, y compris de mineurs, et d
 - Passage **Essai → Mineur/Majeur** (essai concluant) : la fiche "Essai" est supprimée, une nouvelle fiche est recréée de zéro à partir du formulaire d'inscription définitif (pas de migration/fusion de données).
 - Passage **Mineur → Majeur** (majorité) : aucun changement de la fiche existante — elle garde son jeu de champs "Mineur".
 - ID membre généré automatiquement (`prenom.nom`), avec gestion des doublons homonymes à prévoir.
+- Le **modèle de chaque fiche** (champs présents, libellés, sections, ordre) est éditable par le comité (Paramètres du club → Modèle des fiches) : ne jamais coder en dur un libellé ou un ordre de champ, passer par `FieldDefinition.label_for(profil)` / `section_for` / `order_for`.
+- Facture **manuelle** indépendante possible (hors barème) en plus des cotisations.
 - Catégorie d'âge (U8/U10/U12/U14/U17/U20/Sénior/Vétéran) calculée automatiquement depuis la date de naissance.
 - Soumission de formulaire → fiche créée avec statut "en attente de validation", jamais directement "Actif" ; validation manuelle par le comité.
 - Formulaires : **éditeur structuré** (liste de champs configurables avec règles conditionnelles simples), pas un éditeur visuel type Google Forms pour la V1 — les champs du formulaire doivent correspondre exactement aux champs des fiches membres.

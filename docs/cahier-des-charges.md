@@ -55,6 +55,14 @@ Reprend les grandes sections de ClubDesk, avec un périmètre ajusté :
 - Rendu **professionnel** (sobre, soigné — cohérent avec le fait que certains documents générés, comme les factures, sont envoyés directement aux membres, section 5).
 - Mais **convivial et facile à prendre en main** pour le comité : pas d'interface austère ou complexe à l'usage malgré le rendu professionnel — priorité à la clarté (hiérarchie visuelle nette, actions principales facilement identifiables, cohérence des couleurs/composants d'un écran à l'autre), dans l'esprit de ce qu'on a décrit pour l'espace Contacts (section 4) : structure lisible, pas surchargée.
 
+### Paramètres du club
+
+**Décision (19.09.2026, demande d'Alex) :** l'écran « Paramètres du club » est le point de configuration central. Il contient :
+- l'identité du club et le compte bancaire des QR-factures (placeholders tant que les vraies coordonnées ne sont pas fournies) ;
+- **les adresses email du comité** : trésorier-ère (Cc systématique des factures et relances), secrétariat (notifications d'inscription), président-e, vice-président-e, vérificateur des comptes ;
+- la saison, les délais de paiement et de relance, les textes des emails de facture et de relance (valables pour les cotisations comme pour les factures manuelles, variables `{titre}`, `{objet}`, `{destinataire}`, `{numero}`, `{montant}`, `{echeance}`, `{saison}`, `{prenom}`, `{nom}`, `{modalite}`) ;
+- un accès à l'**éditeur « Modèle des fiches membres »** (section 4).
+
 ### Détail — Tableau de bord
 
 **Widgets (V1) :**
@@ -103,11 +111,11 @@ L'agencement général de la fiche (onglets "Générales" / "Finance", dispositi
 | Code postal, Ville, Pays | Pays = liste déroulante |
 | Sexe | Liste déroulante |
 | Entrée, Sortie, Statut | Dates + statut en liste déroulante : Actif, Licence uniquement, Essai |
-| ID, Rôle | ID = généré automatiquement (`prenom.nom`) ; Rôle = texte/liste (ex. Direction) |
+| ID, Rôle | ID = généré automatiquement (`prenom.nom`) ; Rôle = liste déroulante : Tireur-euse, Coach, Maître d'arme, Membre, Comité, Président-e, Vice-président-e, Trésorier-ère, Secrétaire, Vérificateur des comptes |
 | N° AVS | Texte (format numéro AVS suisse) |
 | Latéralité | Liste déroulante (ex. Droite/Gauche) |
 | N° de licence | Texte |
-| Téléphone élève | Texte |
+| Téléphone escrimeur.euse | Texte |
 | Téléphone parent 1 | Texte |
 | Téléphone parent 2 | Texte |
 | Email élève | Email |
@@ -130,11 +138,11 @@ L'agencement général de la fiche (onglets "Générales" / "Finance", dispositi
 | Code postal, Ville, Pays | Pays = liste déroulante |
 | Sexe | Liste déroulante |
 | Entrée, Sortie, Statut | Dates + statut en liste déroulante : Actif, Licence uniquement, Essai |
-| ID, Rôle | ID = généré automatiquement (`prenom.nom`) ; Rôle = texte/liste (ex. Direction) |
+| ID, Rôle | ID = généré automatiquement (`prenom.nom`) ; Rôle = liste déroulante : Tireur-euse, Coach, Maître d'arme, Membre, Comité, Président-e, Vice-président-e, Trésorier-ère, Secrétaire, Vérificateur des comptes |
 | N° AVS | Texte (format numéro AVS suisse) |
 | Latéralité | Liste déroulante (ex. Droite/Gauche) |
 | N° de licence | Texte |
-| Téléphone élève | Texte |
+| Téléphone escrimeur.euse | Texte |
 | Email | Email |
 | Email alternative | Email |
 | Date de naissance | Date |
@@ -155,7 +163,7 @@ L'agencement général de la fiche (onglets "Générales" / "Finance", dispositi
 | Sexe | Liste déroulante |
 | Statut | Figé sur "Essai" (parmi la même liste : Actif, Licence uniquement, Essai) |
 | ID | Généré automatiquement (`prenom.nom`) |
-| Téléphone élève | Texte |
+| Téléphone escrimeur.euse | Texte |
 | Email | Email |
 | Date de naissance | Date |
 | Nationalité | Liste déroulante |
@@ -169,9 +177,13 @@ Champs calculés/automatiques à implémenter : génération de l'ID (`prenom.no
 - **Essai → Mineur/Majeur** (essai concluant) : la personne remplit le formulaire d'inscription définitive ; sa fiche "Essai" est **supprimée** et une nouvelle fiche est créée de zéro à partir de cette nouvelle soumission (pas de fusion/migration de données).
 - **Mineur → Majeur** (passage à la majorité) : **on ne change rien à la fiche.** Elle garde son jeu de champs "Mineur" (y compris les contacts parents) tel quel ; pas de conversion automatique de la structure de champs à 18 ans. Seule la Catégorie (U8/U10/.../Sénior) continue d'être recalculée automatiquement selon l'âge.
 
+### Modèle des fiches modifiable (« Modèle des fiches membres »)
+
+**Décision (19.09.2026, demande d'Alex) :** le comité peut éditer le format de chaque type de fiche (Mineur, Majeur, Essai) depuis Paramètres du club → « Modèle des fiches membres ». Chaque profil a son propre modèle, indépendant des autres. Pour chaque champ : **libellé affiché**, **section** (Identité et adresse, Adhésion, Contact, Escrime, Entraînement, Finance, Divers, Champs personnalisés), **position** dans la section (▲ ▼), **présence sur la fiche** de ce profil et caractère **sensible**. Les champs personnalisés (texte, liste, dates, jours de la semaine…) se créent depuis le même écran. Garde-fous : Prénom, Nom et Statut ne peuvent pas être masqués ; le N° AVS reste toujours sensible ; un bouton rétablit le modèle d'origine d'un profil. Les formulaires d'inscription, les colonnes de liste, les filtres et les exports suivent automatiquement (une seule source de vérité, cf. section 7). Le numéro de licence, le statut, la tranche tarifaire, la réduction famille, le rôle et les remarques internes restent réservés au comité : ils ne sont jamais proposés dans un formulaire public.
+
 ### Validation des inscriptions
 
-**Décision : les soumissions de formulaire sont validées par le comité avant que le membre ne devienne actif.** (Ça répond aux questions ouvertes correspondantes dans cette section et dans la section 7 — une soumission crée une fiche avec un statut "en attente de validation", pas directement "Actif".)
+**Décision : les soumissions de formulaire sont validées par le comité avant que le membre ne devienne actif.** *Implémenté (19.09.2026) :* le bouton « Valider l'inscription » de la fiche ouvre une fenêtre où le comité choisit la **tranche tarifaire**, confirme la **modalité d'entraînement**, coche la **réduction famille** si besoin et fixe la date d'entrée ; le montant de la cotisation s'affiche en direct, puis la fiche passe à « Actif » en une seule étape (un cours d'essai passe simplement à « Essai »). (Ça répond aux questions ouvertes correspondantes dans cette section et dans la section 7 — une soumission crée une fiche avec un statut "en attente de validation", pas directement "Actif".)
 
 ### Interface de la liste des contacts (référence : capture d'écran ClubDesk fournie)
 
@@ -274,9 +286,13 @@ Soit une grille de 3 × 4 = 12 tarifs à définir (montants pas encore fixés �
 
 *Implémenté (19.09.2026) :* un seul niveau de relance, **répété tous les 30 jours** (délai réglable dans Paramètres du club) tant que la facture reste impayée, uniquement pour les factures déjà envoyées. Envoi par la commande planifiée `send_reminders` ou par le bouton « Envoyer » du module Comptabilité. Le trésorier est en Cc des relances comme des factures. Texte de relance modifiable dans Paramètres du club.
 
+### Facture manuelle indépendante
+
+**Décision (19.09.2026, demande d'Alex) :** en plus des cotisations calculées depuis la fiche, le comité peut créer **une facture isolée à la main** (bouton « Facture manuelle » dans Comptabilité, la liste des factures et la fiche d'un contact) : choix du **destinataire** parmi les contacts (personne ou entreprise), **montant** en CHF, **motif** (140 caractères, repris dans la QR-facture), date d'émission, échéance et email d'envoi facultatif. Elle suit exactement le même circuit que les autres factures : même série de numéros, référence de paiement calculée, PDF avec QR-facture, archivage dans `Club/Factures/<saison>`, envoi avec le trésorier en Cc, relances, pointage du paiement. Elle n'entre pas dans la règle « une facture par membre et par saison » : un contact peut recevoir plusieurs factures manuelles.
+
 ### Périmètre de la comptabilité
 
-**Décision :** pour la V1, le module Comptabilité se limite **uniquement aux cotisations** (facturation, suivi, relances). Pas d'autres types de recettes/dépenses du club pour l'instant.
+**Décision :** pour la V1, le module Comptabilité se limite **uniquement aux cotisations** (facturation, suivi, relances). Pas d'autres types de recettes/dépenses du club pour l'instant. *Précision (19.09.2026) :* la facture manuelle ci-dessus reste une facture émise au nom du club avec le même suivi ; elle ne crée ni comptabilité des dépenses ni autres recettes.
 
 ### Points encore ouverts
 - Montants exacts des 12 tarifs (3 modalités × 4 tranches).
@@ -331,6 +347,8 @@ Deux façons de faire, indépendantes du choix ci-dessus :
 - **Intégration (iframe) dans le site du club** : si la plateforme du site web du club le permet, on peut afficher cette même page publique directement encastrée dans une page du site, sans que le visiteur ne voie qu'il s'agit d'un autre système. Plus intégré visuellement, mais dépend de ce que permet l'outil de site web du club.
 
 Ces deux options utilisent la même page publique générée par notre logiciel ; la différence est juste "lien cliquable" vs "encastré dans une page existante". **Point à vérifier de ton côté** : regarde comment le lien du formulaire ClubDesk actuel est intégré sur le site du club (clic droit sur le bouton/lien du formulaire → "copier le lien", ou inspection de la page) pour savoir si c'est un simple lien ou déjà une iframe — cela dira si on peut reproduire à l'identique avec un simple lien public.
+
+**Décision (19.09.2026, demande d'Alex) :** le **numéro de licence** n'est plus demandé dans les formulaires publics (il est attribué par le club/la fédération et reste sur la fiche, à compléter par le comité). Le champ « Téléphone élève » s'appelle désormais « **Téléphone escrimeur.euse** » partout (fiche et formulaires, l'ancien libellé reste reconnu à l'import CSV).
 
 ### Types de champs de l'éditeur
 

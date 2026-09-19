@@ -12,6 +12,7 @@
   {% endif %}
 {% endif %}
 <a class="btn btn-outline-secondary" href="{% url 'members:list' %}"><i class="bi bi-arrow-left"></i> Liste</a>
+<a class="btn btn-outline-secondary" href="{% url 'billing:invoice_manual' %}?member={{ member.pk }}" title="Créer une facture indépendante pour ce contact"><i class="bi bi-receipt"></i> Facture manuelle</a>
 <a class="btn btn-primary" href="{% url 'members:edit' member.pk %}"><i class="bi bi-pencil"></i> Modifier</a>
 {% endblock %}
 {% block content %}

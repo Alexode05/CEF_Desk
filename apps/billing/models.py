@@ -43,6 +43,11 @@ class InvoiceStatus(models.TextChoices):
     ANNULEE = "ANNULEE", "Annulée"
 
 
+class InvoiceKind(models.TextChoices):
+    COTISATION = "COTISATION", "Cotisation"
+    MANUELLE = "MANUELLE", "Facture manuelle"
+
+
 class InvoiceQuerySet(models.QuerySet):
     def unpaid(self):
         return self.filter(status__in=[InvoiceStatus.GENEREE, InvoiceStatus.ENVOYEE, InvoiceStatus.RELANCEE])
@@ -77,6 +82,7 @@ class Invoice(models.Model):
     objects = InvoiceQuerySet.as_manager()
 
     number = models.CharField("Numéro", max_length=20, unique=True)
+    kind = models.CharField("Type", max_length=12, choices=InvoiceKind.choices, default=InvoiceKind.COTISATION)
     member = models.ForeignKey(Member, on_delete=models.PROTECT, related_name="invoices")
     batch = models.ForeignKey(InvoiceBatch, null=True, blank=True, on_delete=models.SET_NULL, related_name="invoices")
     season = models.CharField("Saison", max_length=9)
@@ -124,6 +130,10 @@ class Invoice(models.Model):
 
     def __str__(self):
         return f"Facture {self.number}"
+
+    @property
+    def is_manual(self):
+        return self.kind == InvoiceKind.MANUELLE
 
     @property
     def is_unpaid(self):

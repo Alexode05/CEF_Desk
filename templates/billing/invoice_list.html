@@ -2,7 +2,7 @@
 {% block title %}Factures{% endblock %}
 {% block page_title %}Factures{% endblock %}
 {% block page_subtitle %}<p class="app-subtitle">{{ invoices|length }} facture(s) · total CHF {{ total|floatformat:2 }}. Cochez « payée » après constat du paiement sur le relevé bancaire.</p>{% endblock %}
-{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'billing:index' %}"><i class="bi bi-arrow-left"></i> Comptabilité</a><a class="btn btn-primary" href="{% url 'billing:batch_create' %}"><i class="bi bi-files"></i> Générer un lot</a>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'billing:index' %}"><i class="bi bi-arrow-left"></i> Comptabilité</a><a class="btn btn-outline-primary" href="{% url 'billing:invoice_manual' %}"><i class="bi bi-plus-lg"></i> Facture manuelle</a><a class="btn btn-primary" href="{% url 'billing:batch_create' %}"><i class="bi bi-files"></i> Générer un lot</a>{% endblock %}
 {% block content %}
 <div class="card">
   <div class="card-body pb-2">
@@ -31,7 +31,7 @@
     {% for inv in invoices %}
     <tr data-href="{{ inv.get_absolute_url }}" class="{% if inv.status == 'ANNULEE' %}text-muted{% endif %}">
       <td>{% if inv.status != 'ANNULEE' %}<form method="post" action="{% url 'billing:invoice_toggle_paid' inv.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input class="form-check-input" type="checkbox" onchange="this.form.submit()" {% if inv.status == 'PAYEE' %}checked{% endif %} title="Marquer payée / non payée"></form>{% endif %}</td>
-      <td class="text-nowrap">{{ inv.number }}</td>
+      <td class="text-nowrap">{{ inv.number }}{% if inv.is_manual %} <span class="badge text-bg-light" title="Facture créée à la main">manuelle</span>{% endif %}</td>
       <td class="fw-semibold">{{ inv.member.display_name }}</td>
       <td>{{ inv.season }}</td>
       <td class="text-end text-nowrap">CHF {{ inv.amount|floatformat:2 }}</td>

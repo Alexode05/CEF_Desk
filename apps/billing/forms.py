@@ -1,4 +1,8 @@
+from datetime import timedelta
+from decimal import Decimal
+
 from django import forms
+from django.utils import timezone
 
 from apps.members.models import ContactGroup, Member, MemberStatus
 
@@ -46,6 +50,41 @@ class BatchCreateForm(forms.Form):
         cleaned = super().clean()
         if not (cleaned.get("ids") or cleaned.get("group") or cleaned.get("mailing_list")):
             raise forms.ValidationError("Choisissez un groupe, une liste de diffusion ou une sélection de contacts.")
+        return cleaned
+
+
+class ManualInvoiceForm(forms.Form):
+    """Facture indépendante : destinataire (un contact), montant et motif saisis à la main."""
+
+    member = forms.ModelChoiceField(label="Destinataire", queryset=Member.objects.none(), empty_label="— choisir un contact —")
+    amount = forms.DecimalField(label="Montant (CHF)", min_value=Decimal("0.01"), max_digits=8, decimal_places=2)
+    description = forms.CharField(
+        label="Motif de la facture", max_length=140,
+        help_text="Apparaît sur la facture et dans la QR-facture (140 caractères max.). Ex. « Stage de Pâques 2027 ».",
+    )
+    issue_date = forms.DateField(label="Date d'émission", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
+    due_date = forms.DateField(label="Échéance", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
+    recipient_email = forms.EmailField(
+        label="Email d'envoi", required=False, help_text="Vide = adresse de la fiche du contact."
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.dashboard.models import ClubSettings
+
+        members = Member.objects.order_by("last_name", "first_name", "company_name")
+        self.fields["member"].queryset = members
+        self.fields["member"].label_from_instance = lambda m: f"{m.display_name} — {m.member_id}"
+        if not self.is_bound:
+            today = timezone.localdate()
+            self.fields["issue_date"].initial = today
+            self.fields["due_date"].initial = today + timedelta(days=ClubSettings.load().invoice_due_days)
+
+    def clean(self):
+        cleaned = super().clean()
+        issue, due = cleaned.get("issue_date"), cleaned.get("due_date")
+        if issue and due and due < issue:
+            self.add_error("due_date", "L'échéance ne peut pas précéder la date d'émission.")
         return cleaned
 
 

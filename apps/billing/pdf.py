@@ -13,6 +13,7 @@ from reportlab.graphics import renderPDF
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
+from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
 from svglib.svglib import svg2rlg
 
@@ -134,7 +135,8 @@ def render_invoice_pdf(club, invoice) -> bytes:
     oy = y - 75 * mm
     c.setFillColor(NAVY)
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(left, oy, f"Cotisation — saison {invoice.season}")
+    heading = invoice.description[:80] if invoice.is_manual else f"Cotisation — saison {invoice.season}"
+    c.drawString(left, oy, heading)
     c.setFillColor(colors.black)
     c.setFont("Helvetica", 10)
     c.drawString(left, oy - 6.5 * mm, f"Founex, le {invoice.issue_date.strftime('%d.%m.%Y')}")
@@ -156,13 +158,19 @@ def render_invoice_pdf(club, invoice) -> bytes:
     c.setFillColor(colors.black)
     c.setFont("Helvetica", 10)
     row_y = ty - 8.5 * mm
-    label = f"Cotisation {invoice.season} — {invoice.member.display_name}"
-    if invoice.training_mode_label:
-        label += f" — {invoice.training_mode_label}"
-    if invoice.bracket_label:
-        label += f" ({invoice.bracket_label})"
-    c.drawString(left + 3 * mm, row_y, label[:95])
+    if invoice.is_manual:
+        label = invoice.description
+    else:
+        label = f"Cotisation {invoice.season} — {invoice.member.display_name}"
+        if invoice.training_mode_label:
+            label += f" — {invoice.training_mode_label}"
+        if invoice.bracket_label:
+            label += f" ({invoice.bracket_label})"
+    label_lines = (simpleSplit(label, "Helvetica", 10, right - left - 45 * mm) or [label])[:3]
+    for n, line in enumerate(label_lines):
+        c.drawString(left + 3 * mm, row_y - n * 4.6 * mm, line)
     c.drawRightString(right - 3 * mm, row_y, f"{invoice.base_amount:,.2f}".replace(",", "'"))
+    row_y -= (len(label_lines) - 1) * 4.6 * mm
     if invoice.family_discount and invoice.family_discount > 0:
         row_y -= 6 * mm
         c.drawString(left + 3 * mm, row_y, "Réduction famille (2e enfant et suivants)")

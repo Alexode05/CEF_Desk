@@ -16,6 +16,29 @@ PLACEHOLDER_IBAN = "CH4431999123000889012"
 PLACEHOLDER_MARKER = "[PLACEHOLDER]"
 
 
+# Textes d'email par défaut (cotisations ET factures manuelles) — modifiables dans Paramètres du club.
+DEFAULT_INVOICE_SUBJECT = "{titre} — {destinataire}"
+DEFAULT_INVOICE_BODY = (
+    "Bonjour,\n\n"
+    "Vous trouverez en pièce jointe la facture n° {numero} concernant {objet}.\n\n"
+    "Montant : CHF {montant}\n"
+    "Échéance : {echeance}\n\n"
+    "La facture comporte une QR-facture que vous pouvez scanner avec votre application bancaire.\n\n"
+    "Avec nos salutations sportives,\n"
+    "Le comité du Cercle d'Escrime de Founex"
+)
+DEFAULT_REMINDER_SUBJECT = "Rappel — {titre} — {destinataire}"
+DEFAULT_REMINDER_BODY = (
+    "Bonjour,\n\n"
+    "Sauf erreur de notre part, la facture n° {numero} ({objet}) d'un montant de CHF {montant}, "
+    "échue le {echeance}, n'a pas encore été réglée.\n\n"
+    "Vous la trouverez à nouveau en pièce jointe. Si le paiement a été effectué entre-temps, "
+    "merci de ne pas tenir compte de ce rappel.\n\n"
+    "Avec nos salutations sportives,\n"
+    "Le comité du Cercle d'Escrime de Founex"
+)
+
+
 class ClubSettings(models.Model):
     """Singleton (une seule ligne, id=1)."""
 
@@ -62,36 +85,22 @@ class ClubSettings(models.Model):
     invoice_email_subject = models.CharField(
         "Sujet de l'email de facture",
         max_length=200,
-        default="Cotisation {saison} — {prenom} {nom}",
+        default=DEFAULT_INVOICE_SUBJECT,
     )
     invoice_email_body = models.TextField(
         "Texte de l'email de facture",
-        default=(
-            "Bonjour,\n\n"
-            "Vous trouverez en pièce jointe la facture de cotisation pour la saison {saison} "
-            "concernant {prenom} {nom} ({modalite}).\n\n"
-            "Montant : CHF {montant}\n"
-            "Échéance : {echeance}\n\n"
-            "La facture comporte une QR-facture que vous pouvez scanner avec votre application bancaire.\n\n"
-            "Avec nos salutations sportives,\n"
-            "Le comité du Cercle d'Escrime de Founex"
+        default=DEFAULT_INVOICE_BODY,
+        help_text=(
+            "Variables : {titre}, {objet}, {destinataire}, {numero}, {montant}, {echeance}, "
+            "{saison}, {prenom}, {nom}, {modalite}. Valable pour les cotisations et les factures manuelles."
         ),
-        help_text="Variables disponibles : {saison}, {prenom}, {nom}, {modalite}, {montant}, {echeance}, {numero}.",
     )
     reminder_email_subject = models.CharField(
-        "Sujet de l'email de relance", max_length=200, default="Rappel — cotisation {saison} — {prenom} {nom}"
+        "Sujet de l'email de relance", max_length=200, default=DEFAULT_REMINDER_SUBJECT
     )
     reminder_email_body = models.TextField(
         "Texte de l'email de relance",
-        default=(
-            "Bonjour,\n\n"
-            "Sauf erreur de notre part, la facture n° {numero} (cotisation {saison}, {prenom} {nom}) "
-            "d'un montant de CHF {montant}, échue le {echeance}, n'a pas encore été réglée.\n\n"
-            "Vous la trouverez à nouveau en pièce jointe. Si le paiement a été effectué entre-temps, "
-            "merci de ne pas tenir compte de ce rappel.\n\n"
-            "Avec nos salutations sportives,\n"
-            "Le comité du Cercle d'Escrime de Founex"
-        ),
+        default=DEFAULT_REMINDER_BODY,
     )
 
     class Meta:
