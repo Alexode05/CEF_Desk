@@ -153,26 +153,27 @@ class ModelEditorTests(TestCase):
         self.assertEqual(FieldDefinition.objects.get(key="phone").label, "Téléphone escrimeur.euse")
         form = MemberForm(profile=Profile.MAJEUR)
         self.assertEqual(form.fields["phone"].label, "Téléphone escrimeur.euse")
-        self.assertEqual([c[0] for c in form.fields["role"].choices][1:], [r.value for r in Role])
+        self.assertEqual([c[0] for c in form.fields["roles"].choices], [r.value for r in Role])
         self.assertEqual(dict(Role.choices)["MAITRE_ARMES"], "Maître d'arme")
         self.assertEqual(MemberForm(profile=Profile.MINEUR).fields["email"].label, "Email élève")
         self.assertEqual(MemberForm(profile=Profile.MAJEUR).fields["email"].label, "Email")
 
     def test_role_displays_its_label(self):
-        m = Member.objects.create(first_name="A", last_name="B", role=Role.TRESORIER)
-        self.assertEqual(F.display_value(m, "role"), "Trésorier-ère")
+        m = Member.objects.create(first_name="A", last_name="B", roles=[Role.TRESORIER, Role.COACH])
+        self.assertEqual(F.display_value(m, "roles"), "Trésorier-ère, Coach")
+        self.assertEqual(m.role_labels, ["Trésorier-ère", "Coach"])
 
     def test_layout_changes_are_per_profile(self):
         defs = F.all_field_definitions(include_inactive=True)
         defs.sort(key=lambda d: d.order_for(Profile.MAJEUR))
-        layout.save_layout(Profile.MAJEUR, layout_post(Profile.MAJEUR, defs, label_city="Localité", hide=["licence_number"], section_role="contact"))
+        layout.save_layout(Profile.MAJEUR, layout_post(Profile.MAJEUR, defs, label_city="Localité", hide=["licence_number"], section_roles="contact"))
         majeur = MemberForm(profile=Profile.MAJEUR)
         self.assertEqual(majeur.fields["city"].label, "Localité")
         self.assertNotIn("licence_number", majeur.fields)
         self.assertEqual(MemberForm(profile=Profile.MINEUR).fields["city"].label, "Ville")  # Mineur inchangé
         self.assertIn("licence_number", MemberForm(profile=Profile.MINEUR).fields)
         contact = dict((title, [bf.name for bf in fields]) for title, fields in majeur.sections())["Contact"]
-        self.assertIn("role", contact)
+        self.assertIn("roles", contact)
 
     def test_order_is_saved_per_profile(self):
         defs = F.all_field_definitions(include_inactive=True)
@@ -205,9 +206,9 @@ class ModelEditorTests(TestCase):
         self.assertEqual(form.fields["email"].label, "Email élève")
 
     def test_choice_filters_accept_labels(self):
-        Member.objects.create(first_name="A", last_name="B", status=MemberStatus.LICENCE, sex="F", role=Role.COACH)
+        Member.objects.create(first_name="A", last_name="B", status=MemberStatus.LICENCE, sex="F")
         Member.objects.create(first_name="C", last_name="D", status=MemberStatus.ACTIF, sex="M")
-        for raw, expected in (("status:eq:Licence uniquement", "A"), ("sex:eq:Féminin", "A"), ("role:eq:Coach", "A"), ("status:eq:ACTIF", "C")):
+        for raw, expected in (("status:eq:Licence uniquement", "A"), ("sex:eq:Féminin", "A"), ("status:eq:ACTIF", "C")):
             qs, rest = FL.apply_db_filters(Member.objects.all(), FL.parse_filters([raw]))
             self.assertEqual([m.first_name for m in qs], [expected], raw)
             self.assertEqual(rest, [])
@@ -230,3 +231,108 @@ class ModelEditorPageTests(TestCase):
         self.assertEqual(MemberForm(profile=Profile.MAJEUR).fields["address"].label, "Rue et numéro")
         page = client.get("/contacts/nouveau/?profile=MAJEUR")
         self.assertContains(page, "Rue et numéro")
+
+
+def _post(**values):
+    """QueryDict comme le navigateur l'enverrait (les listes deviennent des valeurs multiples)."""
+    q = QueryDict(mutable=True)
+    for key, value in values.items():
+        q.setlist(key, value if isinstance(value, list) else [value])
+    return q
+
+
+class MultipleRolesTests(TestCase):
+    def setUp(self):
+        F.sync_builtin_fields()
+
+    def test_form_saves_several_roles_and_removes_them(self):
+        member = Member.objects.create(first_name="Ana", last_name="Roux", profile=Profile.MAJEUR)
+        base = {"first_name": "Ana", "last_name": "Roux", "status": MemberStatus.ACTIF, "kind": "PERSONNE", "country": "CH"}
+        for roles, expected in (
+            ([Role.COACH, Role.COMITE, Role.TRESORIER], [Role.COACH, Role.COMITE, Role.TRESORIER]),
+            ([Role.COMITE], [Role.COMITE]),  # un badge retiré = un rôle de moins
+            ([], []),  # tous retirés : rien n'est conservé
+        ):
+            form = MemberForm(_post(roles=roles, **base), instance=member, profile=Profile.MAJEUR)
+            self.assertTrue(form.is_valid(), form.errors)
+            form.save()
+            member.refresh_from_db()
+            self.assertEqual(member.roles, expected)
+
+    def test_invalid_role_is_rejected(self):
+        data = _post(first_name="A", last_name="B", status="ACTIF", kind="PERSONNE", country="CH", roles=["PAPE"])
+        self.assertFalse(MemberForm(data, profile=Profile.MAJEUR).is_valid())
+
+    def test_widget_renders_badges_with_remove_buttons(self):
+        member = Member.objects.create(first_name="Ana", last_name="Roux", roles=[Role.COACH, Role.SECRETAIRE])
+        html = str(MemberForm(instance=member, profile=Profile.MAJEUR)["roles"])
+        self.assertIn('class="role-picker"', html)
+        self.assertEqual(html.count('class="badge role-badge"'), 2)
+        self.assertEqual(html.count('name="roles" value='), 2)
+        self.assertIn("role-badge-remove", html)
+        self.assertIn('<option value="COACH" disabled>', html)
+
+    def test_role_filter_matches_any_of_several_roles(self):
+        Member.objects.create(first_name="A", last_name="B", roles=[Role.COACH, Role.COMITE])
+        Member.objects.create(first_name="C", last_name="D", roles=[Role.MEMBRE])
+        Member.objects.create(first_name="E", last_name="F")
+        everyone = list(Member.objects.all())
+
+        def pick(raw):
+            return sorted(m.first_name for m in FL.apply_python_filters(everyone, FL.parse_filters([raw])))
+
+        self.assertEqual(pick("roles:eq:Comité"), ["A"])
+        self.assertEqual(pick("roles:eq:Coach"), ["A"])
+        self.assertEqual(pick("roles:ne:Coach"), ["C", "E"])
+        self.assertEqual(pick("roles:notempty:"), ["A", "C"])
+        self.assertEqual(pick("roles:empty:"), ["E"])
+
+
+@override_settings(ALLOWED_HOSTS=["localhost", "testserver"])
+class InvoiceStatusColumnTests(TestCase):
+    def setUp(self):
+        F.sync_builtin_fields()
+        self.client = verified_client()
+
+    def _invoice(self, member, status, number, season=None, kind="COTISATION"):
+        from datetime import date as _d
+
+        from apps.billing.models import Invoice
+        from apps.dashboard.models import ClubSettings
+
+        season = season or ClubSettings.load().current_season_label()
+        return Invoice.objects.create(
+            number=number, kind=kind, member=member, season=season, base_amount=100, amount=100,
+            description="x", debtor_name="x", issue_date=_d.today(), due_date=_d.today(), status=status,
+        )
+
+    def test_status_reflects_current_season_cotisation_only(self):
+        paid = Member.objects.create(first_name="Paul", last_name="Paye", profile=Profile.MAJEUR)
+        none = Member.objects.create(first_name="Nina", last_name="Vide", profile=Profile.MAJEUR)
+        old = Member.objects.create(first_name="Olga", last_name="Ancien", profile=Profile.MAJEUR)
+        cancelled = Member.objects.create(first_name="Cleo", last_name="Annulee", profile=Profile.MAJEUR)
+        self._invoice(paid, "PAYEE", "1")
+        self._invoice(paid, "ENVOYEE", "2", kind="MANUELLE")  # une facture manuelle ne change pas le statut de cotisation
+        self._invoice(old, "PAYEE", "3", season="2019-2020")
+        self._invoice(cancelled, "ANNULEE", "4")
+        self.assertEqual(paid.invoice_status_label, "Payée")
+        self.assertEqual(none.invoice_status_label, "Aucune facture")
+        self.assertEqual(old.invoice_status_label, "Aucune facture")
+        self.assertEqual(cancelled.invoice_status_label, "Aucune facture")
+        self.assertEqual(FieldDefinition.objects.get(key="invoice_status_label").label, "Statut de la facture")
+
+    def test_list_shows_status_badge_column_and_can_filter_on_it(self):
+        from apps.members.models import UserListPreference
+
+        for i in range(6):
+            m = Member.objects.create(first_name=f"M{i}", last_name="Test", profile=Profile.MAJEUR, status=MemberStatus.ACTIF)
+            self._invoice(m, "RELANCEE" if i % 2 else "PAYEE", str(100 + i))
+        user = User.objects.get(username="comite")
+        UserListPreference.objects.create(user=user, columns=["last_name", "first_name", "invoice_status_label"])
+        page = self.client.get("/contacts/")
+        self.assertContains(page, "Statut de la facture")
+        self.assertContains(page, "badge-status inv-PAYEE")
+        self.assertContains(page, "badge-status inv-RELANCEE")
+        filtered = self.client.get("/contacts/?f=invoice_status_label:eq:Payée")
+        self.assertContains(filtered, "badge-status inv-PAYEE")
+        self.assertNotContains(filtered, "badge-status inv-RELANCEE")

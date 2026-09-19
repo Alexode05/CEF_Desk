@@ -40,6 +40,8 @@
                 {% if it.sensitive and it.value %}
                   <span class="sensitive sensitive-hidden" id="sens-{{ it.key }}">{{ it.value }}</span>
                   <button class="btn btn-link btn-sm p-0 ms-2" type="button" data-reveal="#sens-{{ it.key }}"><i class="bi bi-eye"></i> Afficher</button>
+                {% elif it.key == 'roles' %}
+                  {% for r in member.role_labels %}<span class="badge role-badge">{{ r }}</span>{% empty %}<span class="text-muted">—</span>{% endfor %}
                 {% elif it.key == 'email' or it.key == 'email_alt' or it.key == 'email_parent1' or it.key == 'email_parent2' %}
                   {% if it.value %}<a href="mailto:{{ it.value }}">{{ it.value }}</a>{% else %}<span class="text-muted">—</span>{% endif %}
                 {% else %}

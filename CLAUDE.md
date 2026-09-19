@@ -18,7 +18,7 @@ Si une décision de conception change en cours de développement, mettre à jour
 
 **Dernière mise à jour : 19 septembre 2026, 2ᵉ session** (code poussé sur GitHub `Alexode05/CEF_Desk`, branche `main`). Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Retours d'Alex du 19.09 traités : voir « Évolutions demandées par Alex » ci-dessous. Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
 
-Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (41 tests, verts).
+Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (54 tests, verts).
 
 | Module | État | Où |
 |---|---|---|
@@ -39,6 +39,12 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 - Rôle : liste déroulante de 10 valeurs (anciens textes libres conservés dans les remarques de la fiche, ex. « Direction » de Marc Favre).
 - Bugs : ligne de la liste non cliquable (script ignorant les formulaires), « Valider l'inscription » sans effet apparent (remplacé par une fenêtre tranche/modalité/réduction famille), suppression des listes de diffusion (bouton ajouté à la liste). Les confirmations utilisent une fenêtre Bootstrap (`data-confirm`), plus `window.confirm`.
 
+**Évolutions demandées par Alex (19.09.2026, 2ᵉ série) — faites :**
+- Rôles **multiples** : `Member.roles` (liste), widget à badges `apps/members/widgets.py` (`RoleBadgesWidget`) + JS `cefdesk.js` ; clé de champ `roles` (l'ancien champ `role` est migré, colonnes et vues enregistrées comprises). Filtre « possède le rôle » géré en Python (JSON non filtrable en SQL sous SQLite).
+- Formulaires publics : **Titre retiré**, **choix du groupe** ajouté (`ContactGroup.public_choice`, coché par défaut pour les groupes de cours ; migration des formulaires existants).
+- Liste des contacts : colonne **« Statut de la facture »** (facture de cotisation de la saison en cours, pastille colorée, filtrable, sans requête par ligne) ; bouton **« Créer une liste de diffusion »** depuis les lignes cochées (`mailing:list_from_selection`).
+- Divers : redirections `next` vérifiées (`apps/accounts/utils.safe_next`) ; CSS/JS versionnés par date de modification (`?v=`) pour éviter les anciennes versions en cache.
+
 **Points à traiter avec Alex (ne pas trancher seul) :**
 - **Validation SIX** : le portail officiel https://validation.iso-payments.ch exige un compte utilisateur → Alex doit s'y inscrire et déposer `docs/exemples/exemple-qr-facture.pdf`. En attendant, `python manage.py check_qrbill` décode le QR du PDF réel et le vérifie contre la norme (passe : adresses structurées obligatoires IG 2.3, référence QR valide, 46 mm, position OK).
 - Montants des 12 tarifs (barème vide → facturation bloquée pour les membres concernés).
@@ -48,7 +54,7 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 - Texte des emails de facture/relance : modifiable dans Paramètres du club (variables `{prenom}`, `{nom}`, `{saison}`, `{montant}`, `{echeance}`, `{numero}`).
 - Ouverture réelle des 3 variantes CSV dans Excel Windows, Numbers et un tableur mobile à tester par Alex.
 - Libellé exact « Téléphone escrimeur.euse » (écriture inclusive avec point) et « Email élève » du profil Mineur, resté inchangé : modifiables sans code dans « Modèle des fiches ». « Maître d'arme » est écrit comme dans la liste fournie (usage courant : « Maître d'armes »).
-- Rôle = une seule valeur par personne (liste déroulante) : une personne à la fois Tireur-euse et Trésorier-ère doit en choisir une. Multi-rôles possible si besoin.
+- Les rôles multiples ne sont pas modifiables en masse depuis la liste (ajout/retrait d'un rôle sur plusieurs contacts) : à ajouter si utile.
 - Les adresses email président-e / vice-président-e / vérificateur des comptes sont enregistrées mais **pas encore utilisées** automatiquement (aucune notification ni Cc) : à préciser si elles doivent recevoir des copies.
 - Facture manuelle : le destinataire doit exister dans les contacts (créer une fiche « Entreprise » pour un sponsor).
 

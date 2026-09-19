@@ -7,7 +7,11 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+
+from apps.dashboard.models import ClubSettings
 from django.views.decorators.http import require_POST
+
+from apps.accounts.utils import safe_next
 
 from . import fields as F
 from . import filters as FL
@@ -20,6 +24,7 @@ from .models import (
     Member,
     MemberStatus,
     Profile,
+    Role,
     SavedView,
     UserListPreference,
 )
@@ -66,7 +71,7 @@ def member_list(request):
             cat = saved_view.category or cat
             group_id = group_id or (str(saved_view.group_id) if saved_view.group_id else None)
 
-    qs = _category_qs(cat).select_related("training_mode", "tariff_bracket").prefetch_related("groups")
+    qs = _category_qs(cat).select_related("training_mode", "tariff_bracket").prefetch_related("groups", "invoices")
     group = None
     if group_id:
         group = ContactGroup.objects.filter(pk=group_id).first()
@@ -88,15 +93,19 @@ def member_list(request):
     columns = (saved_view.columns if saved_view and saved_view.columns else None) or _user_columns(request.user)
     defs = {d.key: d for d in F.all_field_definitions()}
     column_headers = [(k, defs[k].label if k in defs else k) for k in columns]
+    season = ClubSettings.load().current_season_label()
     rows = []
     for m in members:
+        m._season_label = season  # évite une requête par ligne pour la colonne « Statut de la facture »
         cells = []
         for k in columns:
             d = defs.get(k)
             if d and d.is_sensitive:
-                cells.append(m.avs_masked if k == "avs_number" else "•••")
+                cells.append({"text": m.avs_masked if k == "avs_number" else "•••"})
+            elif k == "invoice_status_label":
+                cells.append({"text": m.invoice_status_label, "badge": f"inv-{m.invoice_status_code}"})
             else:
-                cells.append(F.display_value(m, k))
+                cells.append({"text": F.display_value(m, k)})
         rows.append((m, cells))
 
     group_counts = ContactGroup.objects.annotate(n=Count("members"))
@@ -126,6 +135,9 @@ def member_list(request):
             "saved_views": SavedView.objects.all(),
             "saved_view": saved_view,
             "mass_form": MassEditForm(),
+            "default_list_name": (
+                f"Groupe {group.name}" if group else (f"Vue {saved_view.name}" if saved_view else f"Sélection du {timezone.localdate():%d.%m.%Y}")
+            ),
             "profiles": Profile.choices,
         },
     )
@@ -137,7 +149,7 @@ def save_columns(request):
     pref, _ = UserListPreference.objects.get_or_create(user=request.user)
     pref.columns = cols or list(F.DEFAULT_LIST_COLUMNS)
     pref.save()
-    return redirect(request.POST.get("next") or "members:list")
+    return redirect(safe_next(request, "members:list"))
 
 
 @require_POST
@@ -266,7 +278,7 @@ def mass_edit(request):
     form = MassEditForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Modification de masse invalide : " + "; ".join(f"{k} : {' '.join(v)}" for k, v in form.errors.items()))
-        return redirect(request.POST.get("next") or "members:list")
+        return redirect(safe_next(request, "members:list"))
     ids = form.member_ids()
     qs = Member.objects.filter(pk__in=ids)
     action = form.cleaned_data["action"]
@@ -286,7 +298,7 @@ def mass_edit(request):
     elif action == "exit_date":
         qs.update(exit_date=form.cleaned_data["exit_date"])
     messages.success(request, f"Modification appliquée à {n} contact(s).")
-    return redirect(request.POST.get("next") or "members:list")
+    return redirect(safe_next(request, "members:list"))
 
 
 # --- Groupes ---------------------------------------------------------------
@@ -487,7 +499,11 @@ def _member_from_import(data, profile, status):
             m.country = reverse_lookup(COUNTRY_LABELS, value) or "CH"
         elif key == "nationality":
             m.nationality = reverse_lookup(NATIONALITY_LABELS, value)
-        elif key in ("title", "sex", "status", "laterality", "role"):
+        elif key == "roles":
+            labels = {lbl.lower(): code for code, lbl in Role.choices} | {code.lower(): code for code, _ in Role.choices}
+            parts = [p.strip().lower() for p in value.replace(";", ",").split(",") if p.strip()]
+            m.roles = [labels[p] for p in parts if p in labels]
+        elif key in ("title", "sex", "status", "laterality"):
             field = Member._meta.get_field(key)
             m_choices = {c[0].lower(): c[0] for c in field.choices} | {c[1].lower(): c[0] for c in field.choices}
             setattr(m, key, m_choices.get(value.lower(), "") if value else "")

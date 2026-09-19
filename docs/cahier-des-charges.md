@@ -111,7 +111,7 @@ L'agencement général de la fiche (onglets "Générales" / "Finance", dispositi
 | Code postal, Ville, Pays | Pays = liste déroulante |
 | Sexe | Liste déroulante |
 | Entrée, Sortie, Statut | Dates + statut en liste déroulante : Actif, Licence uniquement, Essai |
-| ID, Rôle | ID = généré automatiquement (`prenom.nom`) ; Rôle = liste déroulante : Tireur-euse, Coach, Maître d'arme, Membre, Comité, Président-e, Vice-président-e, Trésorier-ère, Secrétaire, Vérificateur des comptes |
+| ID, Rôle | ID = généré automatiquement (`prenom.nom`) ; Rôles = **plusieurs rôles possibles** : on choisit dans une liste (Tireur-euse, Coach, Maître d'arme, Membre, Comité, Président-e, Vice-président-e, Trésorier-ère, Secrétaire, Vérificateur des comptes) et chaque rôle retenu s'affiche en dessous sous forme de badge que l'on peut retirer (×) |
 | N° AVS | Texte (format numéro AVS suisse) |
 | Latéralité | Liste déroulante (ex. Droite/Gauche) |
 | N° de licence | Texte |
@@ -138,7 +138,7 @@ L'agencement général de la fiche (onglets "Générales" / "Finance", dispositi
 | Code postal, Ville, Pays | Pays = liste déroulante |
 | Sexe | Liste déroulante |
 | Entrée, Sortie, Statut | Dates + statut en liste déroulante : Actif, Licence uniquement, Essai |
-| ID, Rôle | ID = généré automatiquement (`prenom.nom`) ; Rôle = liste déroulante : Tireur-euse, Coach, Maître d'arme, Membre, Comité, Président-e, Vice-président-e, Trésorier-ère, Secrétaire, Vérificateur des comptes |
+| ID, Rôle | ID = généré automatiquement (`prenom.nom`) ; Rôles = **plusieurs rôles possibles** : on choisit dans une liste (Tireur-euse, Coach, Maître d'arme, Membre, Comité, Président-e, Vice-président-e, Trésorier-ère, Secrétaire, Vérificateur des comptes) et chaque rôle retenu s'affiche en dessous sous forme de badge que l'on peut retirer (×) |
 | N° AVS | Texte (format numéro AVS suisse) |
 | Latéralité | Liste déroulante (ex. Droite/Gauche) |
 | N° de licence | Texte |
@@ -207,6 +207,8 @@ On reprend une organisation proche de l'existant, avec une colonne latérale de 
 - Un champ de recherche (par nom, a minima) permet de retrouver rapidement un contact.
 - Au-dessus de la liste, un sélecteur de colonnes permet de choisir **quels champs de la fiche membre afficher** (y compris les champs personnalisés) et **dans quel ordre**, de façon à pouvoir par exemple afficher directement "facture envoyée / payée" en colonne pour un coup d'œil rapide sur tout un groupe.
 - Actions de liste utiles à conserver (vues dans ClubDesk) : créer un nouveau contact, ouvrir/modifier une fiche, import/export, modification de masse.
+- **Colonne « Statut de la facture » (19.09.2026, demande d'Alex) :** parmi les colonnes choisissables de la liste, elle affiche pour chaque membre l'état de sa facture de cotisation de la **saison en cours** sous forme de pastille colorée : Aucune facture, Générée (non envoyée), Envoyée, Relancée, Payée (une facture annulée, une facture d'une ancienne saison ou une facture manuelle ne comptent pas). Elle est aussi filtrable (« qui a payé ? », « à qui la facture a-t-elle été envoyée ? »).
+- **Créer une liste de diffusion depuis la sélection (19.09.2026, demande d'Alex) :** après avoir coché des lignes, le bouton « Créer une liste de diffusion » demande un nom (proposé automatiquement) et crée une liste **statique** contenant ces contacts, immédiatement utilisable pour un email groupé ou la facturation groupée (section 8). Les contacts sans adresse email sont signalés : ils ne recevront rien.
 
 ### Points encore ouverts
 - Colonnes par défaut de la vue liste : **Nom, Prénom, Adresse** (décidé). D'autres colonnes pourront être ajoutées/réordonnées librement par chacun depuis l'UI (cf. section "Interface de la liste").
@@ -348,6 +350,8 @@ Deux façons de faire, indépendantes du choix ci-dessus :
 
 Ces deux options utilisent la même page publique générée par notre logiciel ; la différence est juste "lien cliquable" vs "encastré dans une page existante". **Point à vérifier de ton côté** : regarde comment le lien du formulaire ClubDesk actuel est intégré sur le site du club (clic droit sur le bouton/lien du formulaire → "copier le lien", ou inspection de la page) pour savoir si c'est un simple lien ou déjà une iframe — cela dira si on peut reproduire à l'identique avec un simple lien public.
 
+**Décision (19.09.2026, 2ᵉ série, demande d'Alex) :** le champ **Titre** (Monsieur, Madame, Famille, Aux parents de) n'est plus demandé dans les formulaires publics : le comité le complète sur la fiche si besoin. À l'inverse, la personne peut **choisir son ou ses groupes** (typiquement son créneau de cours) : seuls les groupes marqués « Proposé dans les formulaires d'inscription » (case dans la gestion des groupes, cochée par défaut pour les groupes de cours) sont offerts, jamais les groupes internes comme « Comité » ; elle s'ajoute aux groupes attribués automatiquement par le formulaire. Si aucun groupe n'est proposé, le champ disparaît du formulaire.
+
 **Décision (19.09.2026, demande d'Alex) :** le **numéro de licence** n'est plus demandé dans les formulaires publics (il est attribué par le club/la fédération et reste sur la fiche, à compléter par le comité). Le champ « Téléphone élève » s'appelle désormais « **Téléphone escrimeur.euse** » partout (fiche et formulaires, l'ancien libellé reste reconnu à l'import CSV).
 
 ### Types de champs de l'éditeur
@@ -399,6 +403,8 @@ Deux fonctionnalités principales :
 2. **Envoi groupé des factures** (résout le problème principal identifié en section 5 : ClubDesk ne permet que la génération groupée, pas l'envoi groupé).
 
 ### Listes de diffusion
+
+*Ajout (19.09.2026) :* une liste statique peut aussi être créée en un clic depuis la liste des Contacts, à partir des lignes cochées (bouton « Créer une liste de diffusion », section 4).
 
 - Une liste peut être **dynamique** (= "tous les membres du groupe X", se met à jour automatiquement si le groupe change) ou **statique** (= une sélection figée de contacts choisie manuellement, qui ne bouge pas si les groupes changent ensuite).
 - Utilisées aussi bien pour de simples emails groupés (annonces, infos) que comme base pour la génération/l'envoi de factures groupées.

@@ -191,6 +191,8 @@ def _process_submission(fd, form):
     member.save()
     for g in fd.default_groups.all():
         member.groups.add(g)
+    for g in getattr(form, "selected_groups", []):  # groupes choisis par la personne
+        member.groups.add(g)
     answers = form.answers()
     submission = FormSubmission.objects.create(form=fd, form_name=fd.name, data=answers, profile=member.profile, member=member)
     _notify_secretariat(fd, submission, answers)

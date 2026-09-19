@@ -64,7 +64,7 @@ BUILTIN_FIELDS = [
     BuiltinField("exit_date", "Sortie", "DATE", MIN_MAJ, "membership", sort_order=120),
     BuiltinField("status", "Statut", "SELECT", ALL, "membership", _choices(MemberStatus), sort_order=130),
     BuiltinField("member_id", "ID", "TEXT", ALL, "membership", computed=True, sort_order=140),
-    BuiltinField("role", "Rôle", "SELECT", MIN_MAJ, "membership", _choices(Role), sort_order=150),
+    BuiltinField("roles", "Rôles", "MULTISELECT", MIN_MAJ, "membership", _choices(Role), sort_order=150),
     BuiltinField("groups", "Groupe", "MULTISELECT", ALL, "membership", sort_order=160),
     # --- Escrime ---
     BuiltinField("avs_number", "N° AVS", "TEXT", MIN_MAJ, "fencing", sensitive=True, sort_order=200, help_text="Format 756.XXXX.XXXX.XX"),
@@ -88,7 +88,7 @@ BUILTIN_FIELDS = [
     BuiltinField("tariff_bracket", "Tranche tarifaire", "SELECT", MIN_MAJ, "finance", sort_order=500),
     BuiltinField("family_discount", "Réduction famille", "BOOLEAN", MIN_MAJ, "finance", sort_order=510),
     BuiltinField("computed_amount", "Cotisation calculée", "TEXT", MIN_MAJ, "finance", computed=True, sort_order=520),
-    BuiltinField("invoice_status_label", "Dernière facture", "TEXT", MIN_MAJ, "finance", computed=True, sort_order=530),
+    BuiltinField("invoice_status_label", "Statut de la facture", "TEXT", MIN_MAJ, "finance", computed=True, sort_order=530),
     # --- Divers ---
     BuiltinField("notes", "Remarques internes", "TEXTAREA", ALL, "meta", sort_order=900),
     BuiltinField("created_at", "Créé le", "DATE", ALL, "meta", computed=True, sort_order=910),
@@ -99,9 +99,10 @@ BUILTIN_BY_KEY = {f.key: f for f in BUILTIN_FIELDS}
 # Champs qui ne doivent JAMAIS être proposés dans un formulaire public (section 5 : tranche
 # tarifaire, statut étudiant, réduction famille saisis par le comité ; + champs internes).
 NOT_IN_PUBLIC_FORMS = {
-    "status", "member_id", "role", "entry_date", "exit_date", "tariff_bracket", "family_discount",
-    "computed_amount", "invoice_status_label", "notes", "created_at", "category", "groups",
+    "status", "member_id", "roles", "entry_date", "exit_date", "tariff_bracket", "family_discount",
+    "computed_amount", "invoice_status_label", "notes", "created_at", "category",
     "licence_number",  # attribué par le club / la fédération, pas saisi par l'inscrit
+    "title",  # civilité complétée par le comité sur la fiche, pas demandée à l'inscription
 }
 # Champs qu'aucun modèle de fiche ne peut masquer (la fiche ne fonctionnerait plus sans eux).
 LOCKED_FIELDS = {"first_name", "last_name", "status"}
@@ -195,6 +196,8 @@ def display_value(member, key):
     if key in BUILTIN_BY_KEY:
         if key == "groups":
             return ", ".join(g.name for g in member.groups.all())
+        if key == "roles":
+            return ", ".join(member.role_labels)
         if key == "training_days":
             return ", ".join(WEEKDAY_LABELS.get(d, d) for d in member.training_days or [])
         if key == "country":
@@ -214,7 +217,7 @@ def display_value(member, key):
         if key in ("birth_date", "entry_date", "exit_date"):
             v = getattr(member, key)
             return v.strftime("%d.%m.%Y") if v else ""
-        if key in ("title", "sex", "status", "laterality", "role"):
+        if key in ("title", "sex", "status", "laterality"):
             getter = getattr(member, f"get_{key}_display", None)
             return getter() if getter and getattr(member, key) else ""
         value = getattr(member, key, "")

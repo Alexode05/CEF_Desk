@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.accounts.utils import safe_next
 from apps.dashboard.models import ClubSettings
 from apps.members.models import Member, TariffBracket, TrainingMode
 
@@ -168,7 +169,7 @@ def invoice_toggle_paid(request, pk):
         paid_at = form.cleaned_data.get("paid_at") if form.is_valid() else None
         services.mark_paid(invoice, user=request.user, paid_on=paid_at)
         messages.success(request, f"Facture {invoice.number} marquée payée. Les relances sont arrêtées.")
-    return redirect(request.POST.get("next") or invoice.get_absolute_url())
+    return redirect(safe_next(request, invoice.get_absolute_url()))
 
 
 @require_POST

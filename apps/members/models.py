@@ -175,6 +175,10 @@ class ContactGroup(models.Model):
     is_course = models.BooleanField(
         "Groupe de cours", default=False, help_text="Cochez pour les groupes correspondant à un créneau de cours."
     )
+    public_choice = models.BooleanField(
+        "Proposé dans les formulaires d'inscription", default=False,
+        help_text="La personne qui s'inscrit peut choisir ce groupe (ex. son créneau de cours).",
+    )
 
     class Meta:
         ordering = ["sort_order", "name"]
@@ -259,7 +263,7 @@ class Member(models.Model):
     exit_date = models.DateField("Sortie", null=True, blank=True)
     status = models.CharField("Statut", max_length=12, choices=MemberStatus.choices, default=MemberStatus.EN_ATTENTE)
     member_id = models.SlugField("ID", max_length=120, unique=True, blank=True)
-    role = models.CharField("Rôle", max_length=16, choices=Role.choices, blank=True)
+    roles = models.JSONField("Rôles", default=list, blank=True, help_text="Une personne peut cumuler plusieurs rôles.")
 
     # --- Escrime ---
     avs_number = models.CharField("N° AVS", max_length=16, blank=True, help_text="Format 756.XXXX.XXXX.XX")
@@ -387,14 +391,31 @@ class Member(models.Model):
     def computed_amount(self):
         return services.compute_contribution(self.base_tariff, self.family_discount)
 
+    def cotisation_invoice(self, season=None):
+        """Facture de cotisation (non annulée) la plus récente de la saison — utilise le cache `prefetch_related("invoices")`."""
+        if season is None:
+            from apps.dashboard.models import ClubSettings
+
+            season = ClubSettings.load().current_season_label()
+        candidates = [i for i in self.invoices.all() if i.season == season and i.kind == "COTISATION" and i.status != "ANNULEE"]
+        candidates.sort(key=lambda i: (i.issue_date, i.pk), reverse=True)
+        return candidates[0] if candidates else None
+
     @property
-    def latest_invoice(self):
-        return self.invoices.order_by("-issue_date", "-id").first()
+    def invoice_status_code(self):
+        inv = self.cotisation_invoice(getattr(self, "_season_label", None))
+        return inv.status if inv else "AUCUNE"
 
     @property
     def invoice_status_label(self):
-        inv = self.latest_invoice
+        """Statut de la facture de cotisation de la saison : Payée, Envoyée, Relancée, Générée… ou « Aucune facture »."""
+        inv = self.cotisation_invoice(getattr(self, "_season_label", None))
         return inv.get_status_display() if inv else "Aucune facture"
+
+    @property
+    def role_labels(self):
+        labels = dict(Role.choices)
+        return [labels.get(r, r) for r in (self.roles or [])]
 
     def get_absolute_url(self):
         from django.urls import reverse

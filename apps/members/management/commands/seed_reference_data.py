@@ -47,7 +47,9 @@ class Command(BaseCommand):
         self.stdout.write("Champs natifs synchronisés.")
 
         for name, desc, is_course, order in DEFAULT_GROUPS:
-            ContactGroup.objects.get_or_create(name=name, defaults={"description": desc, "is_course": is_course, "sort_order": order})
+            ContactGroup.objects.get_or_create(
+                name=name, defaults={"description": desc, "is_course": is_course, "public_choice": is_course, "sort_order": order}
+            )
         for name, days, order in TRAINING_MODES:
             TrainingMode.objects.get_or_create(name=name, defaults={"days_per_week": days, "sort_order": order})
         for name, order in BRACKETS:

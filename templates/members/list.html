@@ -115,6 +115,7 @@
           <div><span data-selection-count>0</span> sélectionné(s)</div>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary" type="button" data-needs-selection data-bs-toggle="modal" data-bs-target="#massModal"><i class="bi bi-pencil-square"></i> Modification de masse</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-needs-selection data-bs-toggle="modal" data-bs-target="#listModal"><i class="bi bi-envelope-plus"></i> Créer une liste de diffusion</button>
             <button class="btn btn-sm btn-outline-secondary" type="button" data-needs-selection data-bs-toggle="modal" data-bs-target="#exportModal"><i class="bi bi-download"></i> Exporter</button>
           </div>
         </div>
@@ -131,7 +132,7 @@
               {% for m, cells in rows %}
               <tr data-href="{% url 'members:detail' m.pk %}">
                 <td><input class="form-check-input row-check" type="checkbox" name="ids" value="{{ m.pk }}" aria-label="Sélectionner"></td>
-                {% for c in cells %}<td>{{ c }}</td>{% endfor %}
+                {% for c in cells %}<td>{% if c.badge %}<span class="badge-status {{ c.badge }}">{{ c.text }}</span>{% else %}{{ c.text }}{% endif %}</td>{% endfor %}
                 <td><span class="badge-status status-{{ m.status }}">{{ m.get_status_display }}</span></td>
               </tr>
               {% empty %}
@@ -216,6 +217,24 @@
   </div></div>
 </div>
 
+<!-- Modale : créer une liste de diffusion à partir de la sélection -->
+<div class="modal fade" id="listModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="{% url 'mailing:list_from_selection' %}">
+      {% csrf_token %}
+      <input type="hidden" name="ids" id="list-ids">
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <div class="modal-header"><h5 class="modal-title">Créer une liste de diffusion</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p class="small text-muted">Liste <strong>statique</strong> (sélection figée) contenant les <strong data-selection-count>0</strong> contact(s) cochés. Elle sera utilisable pour les emails groupés et la facturation groupée.</p>
+        <div class="mb-3"><label class="form-label" for="list-name">Nom de la liste</label><input class="form-control" id="list-name" name="name" value="{{ default_list_name }}" maxlength="100" required></div>
+        <div class="mb-0"><label class="form-label" for="list-desc">Description (facultative)</label><input class="form-control" id="list-desc" name="description" maxlength="200"></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-link" data-bs-dismiss="modal">Annuler</button><button class="btn btn-primary" type="submit"><i class="bi bi-envelope-plus"></i> Créer la liste</button></div>
+    </form>
+  </div></div>
+</div>
+
 <!-- Modale : export -->
 <div class="modal fade" id="exportModal" tabindex="-1">
   <div class="modal-dialog modal-lg"><div class="modal-content">
@@ -267,8 +286,8 @@
   // --- Sélection -> champs cachés des modales ---
   function ids() { return Array.from(document.querySelectorAll("input.row-check:checked")).map(function (b) { return b.value; }).join(","); }
   document.addEventListener("cef:selection-changed", function () {
-    var m = document.getElementById("mass-ids"), e = document.getElementById("export-ids");
-    if (m) m.value = ids(); if (e) e.value = ids();
+    var m = document.getElementById("mass-ids"), e = document.getElementById("export-ids"), l = document.getElementById("list-ids");
+    if (m) m.value = ids(); if (e) e.value = ids(); if (l) l.value = ids();
   });
 
   // --- Modification de masse : afficher la bonne option ---

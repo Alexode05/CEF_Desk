@@ -75,6 +75,34 @@
     });
   });
 
+  // Sélecteur de rôles multiples : choisir dans la liste ajoute un badge (retirable avec ×).
+  document.addEventListener("change", function (e) {
+    var sel = e.target.closest(".role-picker-select");
+    if (!sel || !sel.value) return;
+    var picker = sel.closest(".role-picker"), option = sel.options[sel.selectedIndex];
+    var badge = document.createElement("span");
+    badge.className = "badge role-badge";
+    badge.dataset.value = sel.value;
+    badge.appendChild(document.createTextNode(option.text));
+    var remove = document.createElement("button");
+    remove.type = "button"; remove.className = "role-badge-remove"; remove.title = "Retirer"; remove.innerHTML = "&times;";
+    remove.setAttribute("aria-label", "Retirer le rôle " + option.text);
+    var hidden = document.createElement("input");
+    hidden.type = "hidden"; hidden.name = picker.dataset.name; hidden.value = sel.value;
+    badge.appendChild(remove); badge.appendChild(hidden);
+    picker.querySelector(".role-picker-badges").appendChild(badge);
+    option.disabled = true;
+    sel.value = "";
+  });
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest(".role-badge-remove");
+    if (!btn) return;
+    var badge = btn.closest(".role-badge"), picker = badge.closest(".role-picker");
+    var option = picker.querySelector('option[value="' + badge.dataset.value + '"]');
+    if (option) option.disabled = false;
+    badge.remove();
+  });
+
   // Affichage/masquage des données sensibles (N° AVS).
   document.querySelectorAll("[data-reveal]").forEach(function (btn) {
     btn.addEventListener("click", function () {

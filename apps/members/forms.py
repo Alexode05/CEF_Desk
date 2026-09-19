@@ -12,9 +12,11 @@ from .models import (
     Member,
     MemberStatus,
     Profile,
+    Role,
     TariffBracket,
     TrainingMode,
 )
+from .widgets import RoleBadgesWidget
 
 DATE_INPUT = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 
@@ -53,12 +55,13 @@ class MemberForm(forms.ModelForm):
     training_days = forms.MultipleChoiceField(
         label="Jours d'entraînement", choices=WEEKDAYS, widget=forms.CheckboxSelectMultiple, required=False
     )
+    roles = forms.MultipleChoiceField(label="Rôles", choices=Role.choices, widget=RoleBadgesWidget, required=False)
 
     class Meta:
         model = Member
         fields = [
             "kind", "company_name", "title", "first_name", "last_name", "address", "postal_code", "city",
-            "country", "sex", "birth_date", "nationality", "entry_date", "exit_date", "status", "role",
+            "country", "sex", "birth_date", "nationality", "entry_date", "exit_date", "status", "roles",
             "groups", "avs_number", "laterality", "licence_number", "phone", "phone_parent1", "phone_parent2",
             "email", "email_alt", "email_parent1", "email_parent2", "training_mode", "training_days",
             "tariff_bracket", "family_discount", "notes",
@@ -201,7 +204,7 @@ class MemberForm(forms.ModelForm):
 class ContactGroupForm(forms.ModelForm):
     class Meta:
         model = ContactGroup
-        fields = ["name", "description", "is_course", "sort_order"]
+        fields = ["name", "description", "is_course", "public_choice", "sort_order"]
 
 
 class FieldDefinitionForm(forms.ModelForm):

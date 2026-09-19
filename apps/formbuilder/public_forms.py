@@ -10,7 +10,9 @@ from django.core import signing
 from apps.members import fields as F
 from apps.members import services as member_services
 from apps.members.forms import DATE_INPUT, form_field_for_definition
-from apps.members.models import WEEKDAYS, Member, MemberStatus, Profile, TariffBracket, TrainingMode
+from django.db.models import QuerySet
+
+from apps.members.models import WEEKDAYS, ContactGroup, Member, MemberStatus, Profile, TariffBracket, TrainingMode
 
 from .models import FormField
 
@@ -23,6 +25,10 @@ def _builtin_form_field(key, label, required, help_text):
     bf = F.BUILTIN_BY_KEY[key]
     common = {"label": label, "required": required, "help_text": help_text}
     t = bf.field_type
+    if key == "groups":  # créneau(x) de cours proposés à l'inscription
+        return forms.ModelMultipleChoiceField(
+            queryset=ContactGroup.objects.filter(public_choice=True), widget=forms.CheckboxSelectMultiple, **common
+        )
     if key == "training_mode":
         return forms.ModelChoiceField(queryset=TrainingMode.objects.filter(is_active=True), empty_label="—", **common)
     if key == "tariff_bracket":
@@ -68,6 +74,8 @@ class PublicForm(forms.Form):
                 d = ff.field_definition
                 if d is None or not d.is_active:
                     continue
+                if d.key == "groups" and not ContactGroup.objects.filter(public_choice=True).exists():
+                    continue  # aucun groupe proposé au public : le champ n'a pas lieu d'être
                 if d.is_builtin:
                     fld = _builtin_form_field(d.key, ff.effective_label, ff.required, ff.help_text)
                 else:
@@ -146,6 +154,7 @@ class PublicForm(forms.Form):
     def build_member(self, created_by=None):
         profile = self.resolved_profile()
         member = Member(profile=profile, status=MemberStatus.EN_ATTENTE, created_by=created_by)
+        self.selected_groups = []  # relation M2M : appliquée après l'enregistrement de la fiche
         custom = {}
         for name, ff in self.field_map.items():
             if name not in self.cleaned_data or ff.field_definition is None:
@@ -154,6 +163,9 @@ class PublicForm(forms.Form):
             value = self.cleaned_data[name]
             if d.is_builtin:
                 if d.key in F.NOT_IN_PUBLIC_FORMS or F.BUILTIN_BY_KEY[d.key].computed:
+                    continue
+                if d.key == "groups":
+                    self.selected_groups = list(value or [])
                     continue
                 if d.key == "avs_number":
                     value = member_services.format_avs(value)
@@ -174,6 +186,8 @@ class PublicForm(forms.Form):
 def _display(value, ff):
     if value is None or value == "":
         return ""
+    if isinstance(value, QuerySet):
+        return ", ".join(str(v) for v in value)
     if isinstance(value, (list, tuple)):
         from apps.members.models import WEEKDAY_LABELS
 

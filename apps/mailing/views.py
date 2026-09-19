@@ -3,6 +3,7 @@ from django.core.mail import EmailMessage
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from apps.accounts.utils import safe_next
 from apps.billing.models import EmailLog
 from apps.dashboard.models import ClubSettings
 from apps.members.models import Member
@@ -32,6 +33,32 @@ def list_create(request):
         return redirect("mailing:list_detail", pk=ml.pk)
     preselected = Member.objects.filter(pk__in=[int(x) for x in (ids or "").split(",") if x.strip().isdigit()])
     return render(request, "mailing/list_form.html", {"form": form, "preselected": preselected})
+
+
+@require_POST
+def list_from_selection(request):
+    """Crée une liste de diffusion statique à partir des contacts cochés dans la liste des Contacts."""
+    ids = [int(x) for x in request.POST.get("ids", "").split(",") if x.strip().isdigit()]
+    name = request.POST.get("name", "").strip()[:100]
+    back = safe_next(request, "members:list")
+    if not ids:
+        messages.error(request, "Aucun contact sélectionné.")
+        return redirect(back)
+    if not name:
+        messages.error(request, "Donnez un nom à la liste de diffusion.")
+        return redirect(back)
+    if MailingList.objects.filter(name__iexact=name).exists():
+        messages.error(request, f"Une liste nommée « {name} » existe déjà : choisissez un autre nom.")
+        return redirect(back)
+    members = Member.objects.filter(pk__in=ids)
+    ml = MailingList.objects.create(
+        name=name, kind=MailingList.Kind.STATIC, description=request.POST.get("description", "").strip()[:200], created_by=request.user
+    )
+    ml.static_members.set(members)
+    without_email = sum(1 for m in members if not m.primary_email)
+    note = f" {without_email} n'ont pas d'adresse email et ne recevront rien." if without_email else ""
+    messages.success(request, f"Liste « {ml.name} » créée avec {members.count()} contact(s).{note}")
+    return redirect("mailing:list_detail", pk=ml.pk)
 
 
 def list_detail(request, pk):

@@ -23,7 +23,7 @@ OPERATOR_LABELS = dict(OPERATORS)
 
 DB_FIELDS = {
     "title", "first_name", "last_name", "address", "postal_code", "city", "country", "sex", "birth_date",
-    "nationality", "entry_date", "exit_date", "status", "member_id", "role", "avs_number", "laterality",
+    "nationality", "entry_date", "exit_date", "status", "member_id", "avs_number", "laterality",
     "licence_number", "phone", "phone_parent1", "phone_parent2", "email", "email_alt", "email_parent1",
     "email_parent2", "notes", "kind", "profile",
 }
@@ -102,6 +102,16 @@ def apply_python_filters(members, filters):
         ok = True
         for flt in filters:
             key, op, value = flt["key"], flt["op"], flt["value"]
+            if key == "roles":  # plusieurs valeurs : « égal à » = « possède ce rôle »
+                labels = [r.lower() for r in m.role_labels] + [r.lower() for r in (m.roles or [])]
+                has = value.lower() in labels
+                if (op == "eq" and not has) or (op == "ne" and has) or (op == "contains" and value.lower() not in " ".join(labels)):
+                    ok = False
+                elif (op == "empty" and m.roles) or (op == "notempty" and not m.roles):
+                    ok = False
+                if not ok:
+                    break
+                continue
             if key == "category":
                 actual = m.category
             else:
@@ -143,5 +153,7 @@ def filterable_fields():
             choices = list(d.choices)
         if d.key == "category":
             choices = services.CATEGORY_LABELS
+        if d.key == "invoice_status_label":
+            choices = ["Aucune facture", "Générée (non envoyée)", "Envoyée", "Relancée", "Payée"]
         out.append({"key": d.key, "label": d.label, "choices": choices, "type": d.field_type})
     return out
