@@ -135,7 +135,12 @@ def render_invoice_pdf(club, invoice) -> bytes:
     oy = y - 75 * mm
     c.setFillColor(NAVY)
     c.setFont("Helvetica-Bold", 12)
-    heading = invoice.description[:80] if invoice.is_manual else f"Cotisation — saison {invoice.season}"
+    if invoice.is_manual:
+        heading = invoice.description[:80]
+    elif invoice.is_trial:
+        heading = "Cours d'essai"
+    else:
+        heading = f"Cotisation — saison {invoice.season}"
     c.drawString(left, oy, heading)
     c.setFillColor(colors.black)
     c.setFont("Helvetica", 10)
@@ -158,7 +163,7 @@ def render_invoice_pdf(club, invoice) -> bytes:
     c.setFillColor(colors.black)
     c.setFont("Helvetica", 10)
     row_y = ty - 8.5 * mm
-    if invoice.is_manual:
+    if not invoice.is_cotisation:
         label = invoice.description
     else:
         label = f"Cotisation {invoice.season} — {invoice.member.display_name}"

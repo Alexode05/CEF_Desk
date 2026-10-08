@@ -320,7 +320,7 @@
       e.preventDefault(); var after = Array.from(selected.children).find(function (c) { return c !== dragging && e.clientY < c.getBoundingClientRect().top + c.offsetHeight / 2; });
       if (dragging) { if (after) selected.insertBefore(dragging, after); else selected.appendChild(dragging); }
     });
-    document.querySelectorAll(".col-add").forEach(function (b) { b.addEventListener("click", function () { selected.appendChild(makeItem(b.dataset.key, b.dataset.label)); b.classList.add("d-none"); }); });
+    document.querySelectorAll(".col-add").forEach(function (b) { b.addEventListener("click", function () { if (selected.querySelector('li[data-key="' + b.dataset.key + '"]')) return; selected.appendChild(makeItem(b.dataset.key, b.dataset.label)); b.classList.add("d-none"); }); });
     document.getElementById("col-search").addEventListener("input", function (e) {
       var q = e.target.value.toLowerCase(); document.querySelectorAll(".col-add").forEach(function (b) { if (!b.classList.contains("d-none") || q) b.style.display = b.dataset.label.toLowerCase().indexOf(q) >= 0 ? "" : "none"; });
     });

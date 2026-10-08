@@ -45,6 +45,7 @@ class InvoiceStatus(models.TextChoices):
 
 class InvoiceKind(models.TextChoices):
     COTISATION = "COTISATION", "Cotisation"
+    ESSAI = "ESSAI", "Cours d'essai"
     MANUELLE = "MANUELLE", "Facture manuelle"
 
 
@@ -134,6 +135,31 @@ class Invoice(models.Model):
     @property
     def is_manual(self):
         return self.kind == InvoiceKind.MANUELLE
+
+    @property
+    def is_trial(self):
+        return self.kind == InvoiceKind.ESSAI
+
+    @property
+    def is_cotisation(self):
+        return self.kind == InvoiceKind.COTISATION
+
+    def resolve_recipient(self):
+        """
+        Adresse à laquelle envoyer la facture maintenant.
+
+        - facture manuelle : l'adresse choisie à la création, sinon celle de la fiche ;
+        - cotisation / essai : toujours l'adresse de contact actuelle de la fiche (parent 1 pour un mineur),
+          pour qu'une adresse corrigée après la génération soit bien prise en compte.
+        """
+        if self.is_manual:
+            return self.recipient_email or self.member.primary_email or ""
+        return self.member.primary_email or self.recipient_email or ""
+
+    @property
+    def display_recipient(self):
+        """Adresse affichée : celle qui sera utilisée tant que la facture n'est pas partie, celle utilisée ensuite."""
+        return self.resolve_recipient() if self.status == InvoiceStatus.GENEREE else self.recipient_email
 
     @property
     def is_unpaid(self):

@@ -23,6 +23,7 @@ class ClubSettingsForm(forms.ModelForm):
             "auditor_email",
             "season_start_month",
             "invoice_due_days",
+            "trial_fee",
             "reminder_delay_days",
             "invoice_email_subject",
             "invoice_email_body",

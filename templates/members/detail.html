@@ -22,7 +22,7 @@
 
 <ul class="nav nav-tabs mb-3" role="tablist">
   <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-general" type="button">Générales</button></li>
-  {% if finance %}<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-finance" type="button">Finance</button></li>{% endif %}
+  {% if finance or invoices or member.profile == 'ESSAI' %}<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-finance" type="button">Finance</button></li>{% endif %}
 </ul>
 
 <div class="tab-content">
@@ -57,10 +57,10 @@
     </div>
   </div>
 
-  {% if finance %}
+  {% if finance or invoices or member.profile == 'ESSAI' %}
   <div class="tab-pane fade" id="tab-finance">
     <div class="row g-4">
-      <div class="col-lg-5">
+      {% if finance %}<div class="col-lg-5">
         <div class="card">
           <div class="card-header">Cotisation</div>
           <div class="card-body">
@@ -77,11 +77,11 @@
             {% endif %}
           </div>
         </div>
-      </div>
-      <div class="col-lg-7">
+      </div>{% endif %}
+      <div class="{% if finance %}col-lg-7{% else %}col-lg-8{% endif %}">
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center"><span>Factures</span>
-            {% if member.computed_amount is not None and member.status == 'ACTIF' or member.status == 'LICENCE' %}<a class="btn btn-sm btn-outline-primary" href="{% url 'billing:invoice_create' member.pk %}"><i class="bi bi-plus-lg"></i> Générer une facture</a>{% endif %}</div>
+            {% if can_invoice %}<a class="btn btn-sm btn-outline-primary" href="{% url 'billing:invoice_create' member.pk %}"><i class="bi bi-plus-lg"></i> {% if member.profile == 'ESSAI' %}Facturer le cours d'essai (CHF {{ member.computed_amount|floatformat:2 }}){% else %}Générer une facture{% endif %}</a>{% endif %}</div>
           {% if invoices %}
           <div class="table-responsive"><table class="table table-hover table-clickable">
             <thead><tr><th>N°</th><th>Saison</th><th class="text-end">Montant</th><th>Émise</th><th>Statut</th></tr></thead>

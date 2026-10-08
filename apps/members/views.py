@@ -1,5 +1,6 @@
 import csv
 import io
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.contrib import messages
 from django.db.models import Count, Q
@@ -90,8 +91,12 @@ def member_list(request):
     qs, py_filters = FL.apply_db_filters(qs, filters)
     members = FL.apply_python_filters(list(qs), py_filters)
 
-    columns = (saved_view.columns if saved_view and saved_view.columns else None) or _user_columns(request.user)
     defs = {d.key: d for d in F.all_field_definitions()}
+    chosen = []  # colonnes qui viennent d'être confirmées dans la fenêtre « Colonnes » alors qu'une vue est ouverte
+    for c in request.GET.get("cols", "").split(","):
+        if c in defs and c not in chosen:
+            chosen.append(c)
+    columns = chosen or (saved_view.columns if saved_view and saved_view.columns else None) or _user_columns(request.user)
     column_headers = [(k, defs[k].label if k in defs else k) for k in columns]
     season = ClubSettings.load().current_season_label()
     rows = []
@@ -145,11 +150,23 @@ def member_list(request):
 
 @require_POST
 def save_columns(request):
-    cols = [c for c in request.POST.getlist("columns") if c]
+    valid = {d.key for d in F.all_field_definitions()}
+    cols = []
+    for c in request.POST.getlist("columns"):
+        if c in valid and c not in cols:  # pas de colonne inconnue ni en double
+            cols.append(c)
     pref, _ = UserListPreference.objects.get_or_create(user=request.user)
     pref.columns = cols or list(F.DEFAULT_LIST_COLUMNS)
     pref.save()
-    return redirect(safe_next(request, "members:list"))
+
+    # Une vue enregistrée impose ses propres colonnes : si l'une est ouverte, on transmet le choix dans
+    # l'adresse (`cols`) pour qu'il s'applique tout de suite, sans modifier la vue (partagée par le comité).
+    target = safe_next(request, reverse("members:list"))
+    parts = urlsplit(target)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != "cols"]
+    if any(k == "view" for k, _ in query):
+        query.append(("cols", ",".join(pref.columns)))
+    return redirect(urlunsplit(parts._replace(query=urlencode(query))))
 
 
 @require_POST
@@ -194,10 +211,14 @@ def member_detail(request, pk):
         validate_form = ValidateMemberForm(
             initial={"training_mode": member.training_mode, "tariff_bracket": member.tariff_bracket, "family_discount": member.family_discount}
         )
+    can_invoice = member.computed_amount is not None and member.status in (MemberStatus.ACTIF, MemberStatus.LICENCE, MemberStatus.ESSAI)
     return render(
         request,
         "members/detail.html",
-        {"member": member, "sections": ordered, "finance": finance, "invoices": member.invoices.all()[:20], "validate_form": validate_form},
+        {
+            "member": member, "sections": ordered, "finance": finance, "invoices": member.invoices.all()[:20],
+            "validate_form": validate_form, "can_invoice": can_invoice,
+        },
     )
 
 

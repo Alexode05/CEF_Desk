@@ -16,7 +16,7 @@ from stdnum.ch import esr
 from apps.dashboard.models import ClubSettings
 from apps.documents.services import store_generated_file
 from apps.members import services as member_services
-from apps.members.models import Member
+from apps.members.models import Member, Profile
 
 from .models import EmailLog, Invoice, InvoiceBatch, InvoiceKind, InvoiceStatus
 from .pdf import render_invoice_pdf
@@ -68,31 +68,47 @@ def create_invoice_for_member(member: Member, user=None, batch: InvoiceBatch = N
     season_end_year = int(season.split("-")[1])
     issue_date = issue_date or timezone.localdate()
 
-    base = member.base_tariff
-    if base is None:
-        raise BillingError(
-            f"{member.display_name} : montant introuvable (modalité d'entraînement ou tranche tarifaire manquante, "
-            "ou tarif non défini dans le barème)."
-        )
-    discount = member_services.FAMILY_DISCOUNT_CHF if member.family_discount else Decimal("0.00")
-    amount = member_services.compute_contribution(base, member.family_discount)
-    if amount is None or amount <= 0:
-        raise BillingError(f"{member.display_name} : montant calculé nul ou négatif.")
-
-    if Invoice.objects.filter(member=member, season=season).exclude(status=InvoiceStatus.ANNULEE).exists():
-        raise BillingError(f"{member.display_name} : une facture existe déjà pour la saison {season}.")
+    is_trial = member.profile == Profile.ESSAI
+    if is_trial:
+        # Cours d'essai : montant fixe (Paramètres du club, 50 CHF), ni barème ni réduction famille.
+        base = club.trial_fee
+        if base is None or base <= 0:
+            raise BillingError("Le tarif du cours d'essai n'est pas défini dans les Paramètres du club.")
+        discount, amount = Decimal("0.00"), base
+        if Invoice.objects.filter(member=member, kind=InvoiceKind.ESSAI).exclude(status=InvoiceStatus.ANNULEE).exists():
+            raise BillingError(f"{member.display_name} : le cours d'essai a déjà été facturé.")
+        kind, description = InvoiceKind.ESSAI, f"Cours d'essai - {member.display_name}"[:140]
+        mode_label = bracket_label = ""
+    else:
+        base = member.base_tariff
+        if base is None:
+            raise BillingError(
+                f"{member.display_name} : montant introuvable (modalité d'entraînement ou tranche tarifaire manquante, "
+                "ou tarif non défini dans le barème)."
+            )
+        discount = member_services.FAMILY_DISCOUNT_CHF if member.family_discount else Decimal("0.00")
+        amount = member_services.compute_contribution(base, member.family_discount)
+        if amount is None or amount <= 0:
+            raise BillingError(f"{member.display_name} : montant calculé nul ou négatif.")
+        # Une facture manuelle (stage, sponsoring…) ne doit pas empêcher la facture de cotisation de la saison.
+        if Invoice.objects.filter(member=member, season=season, kind=InvoiceKind.COTISATION).exclude(status=InvoiceStatus.ANNULEE).exists():
+            raise BillingError(f"{member.display_name} : une facture de cotisation existe déjà pour la saison {season}.")
+        kind, description = InvoiceKind.COTISATION, invoice_description(member, season)
+        mode_label = str(member.training_mode) if member.training_mode else ""
+        bracket_label = str(member.tariff_bracket) if member.tariff_bracket else ""
 
     invoice = Invoice(
         number=next_invoice_number(season_end_year),
+        kind=kind,
         member=member,
         batch=batch,
         season=season,
-        training_mode_label=str(member.training_mode) if member.training_mode else "",
-        bracket_label=str(member.tariff_bracket) if member.tariff_bracket else "",
+        training_mode_label=mode_label,
+        bracket_label=bracket_label,
         base_amount=base,
         family_discount=discount,
         amount=amount,
-        description=invoice_description(member, season),
+        description=description,
         debtor_name=member.display_name[:70],
         debtor_street=member.address[:70],
         debtor_postal_code=member.postal_code[:16],
@@ -177,6 +193,9 @@ def _render_template(text, invoice):
     club = ClubSettings.load()
     if invoice.is_manual:
         title = objet = invoice.description
+    elif invoice.is_trial:
+        title = "Cours d'essai"
+        objet = f"le cours d'essai de {invoice.member.display_name}"
     else:
         title = f"Cotisation {invoice.season}"
         objet = f"la cotisation de la saison {invoice.season} de {invoice.member.display_name}"
@@ -205,9 +224,12 @@ def _render_template(text, invoice):
 def send_invoice_email(invoice: Invoice, user=None, reminder=False):
     """Envoie la facture (ou la relance) par email, PDF joint, trésorier en Cc."""
     club = ClubSettings.load()
-    to = invoice.recipient_email or invoice.member.primary_email
+    to = invoice.resolve_recipient()
     if not to:
         raise BillingError(f"{invoice.member.display_name} : aucune adresse email sur la fiche.")
+    if to != invoice.recipient_email:  # on garde trace de l'adresse réellement utilisée
+        invoice.recipient_email = to
+        invoice.save(update_fields=["recipient_email"])
     if not invoice.pdf:
         generate_pdf(invoice, user=user)
 

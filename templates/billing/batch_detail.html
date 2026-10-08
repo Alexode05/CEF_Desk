@@ -20,9 +20,9 @@
         <td>{% if inv.status == 'GENEREE' %}<input class="form-check-input row-check" type="checkbox" name="ids" value="{{ inv.pk }}" checked>{% endif %}</td>
         <td>{{ inv.number }}</td>
         <td class="fw-semibold"><a href="{{ inv.get_absolute_url }}">{{ inv.member.display_name }}</a></td>
-        <td class="small">{{ inv.training_mode_label }} / {{ inv.bracket_label }}{% if inv.family_discount %} <span class="badge text-bg-light">-100</span>{% endif %}</td>
+        <td class="small">{% if inv.is_cotisation %}{{ inv.training_mode_label }} / {{ inv.bracket_label }}{% if inv.family_discount %} <span class="badge text-bg-light">-100</span>{% endif %}{% else %}{{ inv.get_kind_display }}{% endif %}</td>
         <td class="text-end">CHF {{ inv.amount|floatformat:2 }}</td>
-        <td class="small">{{ inv.recipient_email|default:'<span class="text-danger">aucune</span>' }}</td>
+        <td class="small">{{ inv.display_recipient|default:'<span class="text-danger">aucune</span>' }}</td>
         <td><span class="badge-status inv-{{ inv.status }}">{{ inv.get_status_display }}</span></td>
         <td class="text-end"><a class="btn btn-sm btn-link" href="{% url 'billing:invoice_pdf' inv.pk %}" target="_blank" title="Ouvrir le PDF"><i class="bi bi-file-earmark-pdf"></i></a></td>
       </tr>

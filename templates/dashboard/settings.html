@@ -54,9 +54,10 @@
         </div>
       </div>
       <div class="card mb-4">
-        <div class="card-header">Saison et délais</div>
+        <div class="card-header">Saison, délais et tarif d'essai</div>
         <div class="card-body">
           <div class="row"><div class="col-4">{{ form.season_start_month|as_crispy_field }}</div><div class="col-4">{{ form.invoice_due_days|as_crispy_field }}</div><div class="col-4">{{ form.reminder_delay_days|as_crispy_field }}</div></div>
+          <div class="row"><div class="col-6">{{ form.trial_fee|as_crispy_field }}</div></div>
           <p class="small text-muted mb-0">Saison courante calculée : <strong>{{ current_season }}</strong>.</p>
         </div>
       </div>

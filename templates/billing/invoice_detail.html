@@ -5,7 +5,7 @@
 {% block page_actions %}
 <a class="btn btn-outline-secondary" href="{% url 'billing:invoice_pdf' invoice.pk %}" target="_blank"><i class="bi bi-file-earmark-pdf"></i> Ouvrir le PDF</a>
 {% if invoice.is_unpaid %}
-<form method="post" action="{% url 'billing:invoice_send' invoice.pk %}" data-confirm="Envoyer la facture par email à {{ invoice.recipient_email|default:'(aucune adresse)' }} avec le trésorier en copie ?">{% csrf_token %}<button class="btn btn-primary" type="submit" {% if not invoice.recipient_email %}disabled{% endif %}><i class="bi bi-send"></i> {% if invoice.sent_at %}Renvoyer{% else %}Envoyer{% endif %} par email</button></form>
+<form method="post" action="{% url 'billing:invoice_send' invoice.pk %}" data-confirm="Envoyer la facture par email à {{ invoice.display_recipient|default:'(aucune adresse)' }} avec le trésorier en copie ?">{% csrf_token %}<button class="btn btn-primary" type="submit" {% if not invoice.display_recipient %}disabled{% endif %}><i class="bi bi-send"></i> {% if invoice.sent_at %}Renvoyer{% else %}Envoyer{% endif %} par email</button></form>
 {% endif %}
 {% endblock %}
 {% block content %}
@@ -18,7 +18,7 @@
         <dl class="row mb-0">
           <dt class="col-sm-4 text-muted fw-normal small">Motif</dt><dd class="col-sm-8">{{ invoice.description }}</dd>
           <dt class="col-sm-4 text-muted fw-normal small">Type</dt><dd class="col-sm-8">{{ invoice.get_kind_display }}</dd>
-          {% if not invoice.is_manual %}
+          {% if invoice.is_cotisation %}
           <dt class="col-sm-4 text-muted fw-normal small">Modalité / tranche</dt><dd class="col-sm-8">{{ invoice.training_mode_label|default:"—" }} / {{ invoice.bracket_label|default:"—" }}</dd>
           <dt class="col-sm-4 text-muted fw-normal small">Montant de base</dt><dd class="col-sm-8">CHF {{ invoice.base_amount|floatformat:2 }}</dd>
           {% if invoice.family_discount %}<dt class="col-sm-4 text-muted fw-normal small">Réduction famille</dt><dd class="col-sm-8">- CHF {{ invoice.family_discount|floatformat:2 }}</dd>{% endif %}
@@ -27,7 +27,7 @@
           <dt class="col-sm-4 text-muted fw-normal small">Émise / échéance</dt><dd class="col-sm-8">{{ invoice.issue_date|date:"d.m.Y" }} / <span class="{% if invoice.is_overdue %}text-danger fw-semibold{% endif %}">{{ invoice.due_date|date:"d.m.Y" }}</span></dd>
           <dt class="col-sm-4 text-muted fw-normal small">Référence de paiement</dt><dd class="col-sm-8"><code>{{ invoice.reference }}</code></dd>
           <dt class="col-sm-4 text-muted fw-normal small">Débiteur (QR)</dt><dd class="col-sm-8">{{ invoice.debtor_name }}, {{ invoice.debtor_street }}, {{ invoice.debtor_postal_code }} {{ invoice.debtor_city }}</dd>
-          <dt class="col-sm-4 text-muted fw-normal small">Email destinataire</dt><dd class="col-sm-8">{{ invoice.recipient_email|default:"— (aucune adresse sur la fiche)" }}</dd>
+          <dt class="col-sm-4 text-muted fw-normal small">Email destinataire</dt><dd class="col-sm-8">{{ invoice.display_recipient|default:"— (aucune adresse sur la fiche)" }}</dd>
           <dt class="col-sm-4 text-muted fw-normal small">Envoyée le</dt><dd class="col-sm-8">{{ invoice.sent_at|date:"d.m.Y H:i"|default:"—" }}</dd>
           <dt class="col-sm-4 text-muted fw-normal small">Relances</dt><dd class="col-sm-8">{{ invoice.reminder_count }}{% if invoice.reminded_at %} (dernière le {{ invoice.reminded_at|date:"d.m.Y" }}){% endif %}{% if invoice.next_reminder_date %} · prochaine le {{ invoice.next_reminder_date|date:"d.m.Y" }}{% endif %}</dd>
           {% if invoice.paid_at %}<dt class="col-sm-4 text-muted fw-normal small">Payée le</dt><dd class="col-sm-8">{{ invoice.paid_at|date:"d.m.Y" }}{% if invoice.paid_marked_by %} (pointée par {{ invoice.paid_marked_by.first_name|default:invoice.paid_marked_by.username }}){% endif %}</dd>{% endif %}

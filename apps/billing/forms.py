@@ -18,7 +18,7 @@ class BatchCreateForm(forms.Form):
     mailing_list = forms.ModelChoiceField(label="Liste de diffusion", queryset=None, required=False)
     ids = forms.CharField(widget=forms.HiddenInput, required=False)
     only_active = forms.BooleanField(
-        label="Uniquement les membres au statut Actif ou Licence uniquement", initial=True, required=False
+        label="Uniquement les membres au statut Actif, Licence uniquement ou Essai", initial=True, required=False
     )
     skip_already_invoiced = forms.BooleanField(
         label="Ignorer les membres déjà facturés pour la saison", initial=True, required=False
@@ -43,7 +43,7 @@ class BatchCreateForm(forms.Form):
         else:
             return Member.objects.none()
         if self.cleaned_data.get("only_active"):
-            qs = qs.filter(status__in=[MemberStatus.ACTIF, MemberStatus.LICENCE])
+            qs = qs.filter(status__in=[MemberStatus.ACTIF, MemberStatus.LICENCE, MemberStatus.ESSAI])
         return qs.exclude(kind="ENTREPRISE").order_by("last_name", "first_name")
 
     def clean(self):

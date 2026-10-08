@@ -1,7 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -9,11 +9,11 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.utils import safe_next
 from apps.dashboard.models import ClubSettings
-from apps.members.models import Member, TariffBracket, TrainingMode
+from apps.members.models import Member, Profile, TariffBracket, TrainingMode
 
 from . import services
 from .forms import BatchCreateForm, ManualInvoiceForm, MarkPaidForm
-from .models import EmailLog, Invoice, InvoiceBatch, InvoiceStatus, Tariff
+from .models import EmailLog, Invoice, InvoiceBatch, InvoiceKind, InvoiceStatus, Tariff
 
 
 def index(request):
@@ -100,10 +100,12 @@ def invoice_pdf(request, pk):
 def invoice_create(request, member_pk):
     member = get_object_or_404(Member, pk=member_pk)
     club = ClubSettings.load()
+    is_trial = member.profile == Profile.ESSAI
     preview = {
         "season": club.current_season_label(),
-        "base": member.base_tariff,
-        "discount": member.family_discount,
+        "is_trial": is_trial,
+        "base": club.trial_fee if is_trial else member.base_tariff,
+        "discount": False if is_trial else member.family_discount,
         "amount": member.computed_amount,
         "email": member.primary_email,
     }
@@ -241,7 +243,11 @@ def batch_create(request):
         members = list(form.members())
         if form.cleaned_data.get("skip_already_invoiced"):
             season = club.current_season_label()
-            already = set(Invoice.objects.filter(season=season).exclude(status=InvoiceStatus.ANNULEE).values_list("member_id", flat=True))
+            already = set(
+                Invoice.objects.exclude(status=InvoiceStatus.ANNULEE)
+                .filter(Q(season=season, kind=InvoiceKind.COTISATION) | Q(kind=InvoiceKind.ESSAI))  # les factures manuelles ne comptent pas
+                .values_list("member_id", flat=True)
+            )
             members = [m for m in members if m.pk not in already]
         if request.POST.get("confirm") == "1":
             if not members:

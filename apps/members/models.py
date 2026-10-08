@@ -340,8 +340,15 @@ class Member(models.Model):
 
     @property
     def primary_email(self):
-        """Email de facturation/contact principal : élève, sinon parent 1, sinon alternative."""
-        return self.email or self.email_parent1 or self.email_alt or self.email_parent2
+        """
+        Adresse de contact et de facturation (factures, relances, mailings).
+
+        Mineur : le **parent 1** (à défaut le parent 2, puis l'élève) — les factures vont aux responsables légaux.
+        Majeur / essai : la personne elle-même, puis son adresse alternative.
+        """
+        if self.profile == Profile.MINEUR:
+            return self.email_parent1 or self.email_parent2 or self.email or self.email_alt
+        return self.email or self.email_alt or self.email_parent1 or self.email_parent2
 
     @property
     def all_emails(self):
@@ -389,15 +396,19 @@ class Member(models.Model):
 
     @property
     def computed_amount(self):
+        if self.profile == Profile.ESSAI:  # cours d'essai : montant fixe des paramètres du club (50 CHF)
+            from apps.dashboard.models import ClubSettings
+
+            return ClubSettings.load().trial_fee
         return services.compute_contribution(self.base_tariff, self.family_discount)
 
     def cotisation_invoice(self, season=None):
-        """Facture de cotisation (non annulée) la plus récente de la saison — utilise le cache `prefetch_related("invoices")`."""
+        """Facture de cotisation ou de cours d'essai (non annulée) la plus récente de la saison — utilise le cache `prefetch_related("invoices")`."""
         if season is None:
             from apps.dashboard.models import ClubSettings
 
             season = ClubSettings.load().current_season_label()
-        candidates = [i for i in self.invoices.all() if i.season == season and i.kind == "COTISATION" and i.status != "ANNULEE"]
+        candidates = [i for i in self.invoices.all() if i.season == season and i.kind in ("COTISATION", "ESSAI") and i.status != "ANNULEE"]
         candidates.sort(key=lambda i: (i.issue_date, i.pk), reverse=True)
         return candidates[0] if candidates else None
 

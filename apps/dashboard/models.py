@@ -7,6 +7,7 @@ Les valeurs bancaires par défaut sont des PLACEHOLDERS clairement identifiés,
 à remplacer par Alex depuis l'écran « Paramètres du club » avant la mise en production.
 """
 from datetime import date
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
@@ -79,6 +80,10 @@ class ClubSettings(models.Model):
         "Mois de début de saison", default=9, help_text="9 = septembre. Sert au calcul de la saison courante et des catégories d'âge."
     )
     invoice_due_days = models.PositiveSmallIntegerField("Délai de paiement (jours)", default=30)
+    trial_fee = models.DecimalField(
+        "Tarif du cours d'essai (CHF)", max_digits=8, decimal_places=2, default=Decimal("50.00"),
+        help_text="Montant fixe facturé pour un cours d'essai, quel que soit le cours.",
+    )
     reminder_delay_days = models.PositiveSmallIntegerField(
         "Délai avant relance (jours)", default=30, help_text="Relance automatique si la facture n'est pas payée après ce délai."
     )
