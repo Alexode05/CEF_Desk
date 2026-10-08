@@ -34,7 +34,7 @@
       {% if recent_unpaid %}
       <div class="table-responsive"><table class="table table-hover table-clickable">
         <thead><tr><th>N°</th><th>Membre</th><th class="text-end">Montant</th><th>Échéance</th><th>Prochain rappel</th><th>Statut</th></tr></thead>
-        <tbody>{% for inv in recent_unpaid %}<tr data-href="{{ inv.get_absolute_url }}"><td>{{ inv.number }}</td><td>{{ inv.member.display_name }}</td><td class="text-end">CHF {{ inv.amount|floatformat:2 }}</td><td class="{% if inv.is_overdue %}text-danger fw-semibold{% endif %}">{{ inv.due_date|date:"d.m.Y" }}</td><td>{{ inv.next_reminder_date|date:"d.m.Y"|default:"—" }}</td><td><span class="badge-status inv-{{ inv.status }}">{{ inv.get_status_display }}</span></td></tr>{% endfor %}</tbody>
+        <tbody>{% for inv in recent_unpaid %}<tr data-href="{{ inv.get_absolute_url }}"><td>{{ inv.number }}</td><td>{{ inv.debtor_label }}</td><td class="text-end">CHF {{ inv.amount|floatformat:2 }}</td><td class="{% if inv.is_overdue %}text-danger fw-semibold{% endif %}">{{ inv.due_date|date:"d.m.Y" }}</td><td>{{ inv.next_reminder_date|date:"d.m.Y"|default:"—" }}</td><td><span class="badge-status inv-{{ inv.status }}">{{ inv.get_status_display }}</span></td></tr>{% endfor %}</tbody>
       </table></div>
       {% else %}<div class="empty-state"><i class="bi bi-check2-circle"></i>Aucune facture impayée.</div>{% endif %}
     </div>

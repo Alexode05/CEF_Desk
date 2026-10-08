@@ -13,6 +13,7 @@ urlpatterns = [
     path("formulaires/", include("apps.formbuilder.urls")),
     path("mailing/", include("apps.mailing.urls")),
     path("export/", include("apps.exports.urls")),
+    path("saison-suivante/", include("apps.renewals.urls")),
 ]
 
 if settings.DEBUG:

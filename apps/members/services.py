@@ -109,6 +109,27 @@ def compute_contribution(base_amount, family_discount=False):
     return max(amount, Decimal("0.00"))
 
 
+class MemberDeletionError(Exception):
+    pass
+
+
+def delete_member_keep_invoices(member):
+    """
+    Supprime définitivement une fiche. Ses factures sont conservées (obligation d'archivage comptable) :
+    elles gardent leur copie du nom et de l'adresse et ne sont plus rattachées à une fiche.
+    Refusé tant qu'une facture n'est ni payée ni annulée (il faut d'abord régler la situation).
+    """
+    unpaid = list(member.invoices.unpaid().values_list("number", flat=True))
+    if unpaid:
+        raise MemberDeletionError(
+            f"{member.display_name} a encore {len(unpaid)} facture(s) non réglée(s) ({', '.join(unpaid)}) : "
+            "marquez-la(les) payée(s) ou annulez-la(les) avant de supprimer la fiche."
+        )
+    kept = member.invoices.update(member=None)
+    member.delete()
+    return kept
+
+
 def format_avs(value):
     """Normalise un numéro AVS en 756.XXXX.XXXX.XX si 13 chiffres fournis."""
     digits = re.sub(r"\D", "", value or "")

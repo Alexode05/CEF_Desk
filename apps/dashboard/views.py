@@ -6,6 +6,7 @@ from django.views.decorators.http import require_POST
 
 from apps.billing.models import Invoice
 from apps.members.models import Member, MemberStatus
+from apps.renewals.models import RenewalRequest
 
 from .forms import ClubSettingsForm, TodoForm
 from .models import ClubSettings, DashboardNote, TodoItem, TodoLog
@@ -19,6 +20,9 @@ def index(request):
     unpaid = Invoice.objects.unpaid().select_related("member").order_by("issue_date")[:10]
     unpaid_count = Invoice.objects.unpaid().count()
     todos = TodoItem.objects.select_related("created_by", "done_by").all()[:50]
+    renewals_to_process = (
+        RenewalRequest.objects.filter(status__in=RenewalRequest.TO_PROCESS).select_related("rollover").order_by("-responded_at")
+    )
     return render(
         request,
         "dashboard/index.html",
@@ -27,6 +31,8 @@ def index(request):
             "active_count": active_count,
             "pending_members": pending_members,
             "pending_count": pending_count,
+            "renewals_to_process": renewals_to_process[:10],
+            "renewals_to_process_count": renewals_to_process.count(),
             "unpaid": unpaid,
             "unpaid_count": unpaid_count,
             "note": DashboardNote.load(),

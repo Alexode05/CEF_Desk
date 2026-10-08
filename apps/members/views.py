@@ -17,6 +17,7 @@ from apps.accounts.utils import safe_next
 from . import fields as F
 from . import filters as FL
 from . import layout
+from . import services
 from .forms import ContactGroupForm, FieldDefinitionForm, ImportForm, MassEditForm, MemberForm, ValidateMemberForm
 from .models import (
     ContactGroup,
@@ -257,12 +258,14 @@ def member_delete(request, pk):
         if request.POST.get("confirm") != member.member_id:
             messages.error(request, "Confirmation incorrecte : recopiez l'ID de la fiche pour la supprimer.")
             return redirect("members:delete", pk=pk)
-        if member.invoices.exists():
-            messages.error(request, "Impossible de supprimer une fiche qui possède des factures. Passez-la en « Inactif » à la place.")
-            return redirect(member)
         name = member.display_name
-        member.delete()
-        messages.success(request, f"Fiche de {name} supprimée définitivement.")
+        try:
+            kept = services.delete_member_keep_invoices(member)
+        except services.MemberDeletionError as exc:
+            messages.error(request, str(exc))
+            return redirect(member)
+        note = f" Ses {kept} facture(s) sont conservées dans la comptabilité." if kept else ""
+        messages.success(request, f"Fiche de {name} supprimée définitivement.{note}")
         return redirect("members:list")
     return render(request, "members/delete.html", {"member": member})
 

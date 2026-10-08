@@ -126,7 +126,7 @@ def render_invoice_pdf(club, invoice) -> bytes:
     c.setFillColor(colors.black)
     c.setFont("Helvetica", 10.5)
     lines = [invoice.debtor_name, invoice.debtor_street, f"{invoice.debtor_postal_code} {invoice.debtor_city}".strip()]
-    if invoice.member.title:
+    if invoice.member and invoice.member.title:
         lines.insert(0, invoice.member.get_title_display())
     for i, line in enumerate(l for l in lines if l):
         c.drawString(right - 75 * mm, ay - i * 5 * mm, line)
@@ -166,7 +166,7 @@ def render_invoice_pdf(club, invoice) -> bytes:
     if not invoice.is_cotisation:
         label = invoice.description
     else:
-        label = f"Cotisation {invoice.season} — {invoice.member.display_name}"
+        label = f"Cotisation {invoice.season} — {invoice.debtor_label}"
         if invoice.training_mode_label:
             label += f" — {invoice.training_mode_label}"
         if invoice.bracket_label:

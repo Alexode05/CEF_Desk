@@ -1,0 +1,22 @@
+{% extends "base_public.html" %}
+{% block title %}Lien indisponible · {{ club.club_name }}{% endblock %}
+{% block brand_title %}{{ club.club_name }}{% endblock %}
+{% block brand_sub %}Vérification des données{% endblock %}
+{% block content %}
+<div class="text-center py-3">
+  {% if reason == "answered" %}
+  <i class="bi bi-check-circle text-success" style="font-size:3rem"></i>
+  <h1 class="h4 mt-3">Réponse déjà reçue</h1>
+  <p class="text-muted">Nous avons déjà reçu votre réponse{% if req.responded_at %} le {{ req.responded_at|date:"d.m.Y" }}{% endif %}. Pour toute autre modification, merci d'écrire au secrétariat du club.</p>
+  {% elif reason == "expired" %}
+  <i class="bi bi-hourglass-bottom text-muted" style="font-size:3rem"></i>
+  <h1 class="h4 mt-3">Lien expiré</h1>
+  <p class="text-muted">Ce lien n'est plus valable. Merci de contacter le secrétariat du club pour en recevoir un nouveau.</p>
+  {% else %}
+  <i class="bi bi-x-circle text-danger" style="font-size:3rem"></i>
+  <h1 class="h4 mt-3">Lien invalide</h1>
+  <p class="text-muted">Ce lien n'existe pas ou n'est plus valable. Vérifiez qu'il a été copié en entier depuis l'email, ou contactez le secrétariat du club.</p>
+  {% endif %}
+</div>
+{% endblock %}
+{% block footer %}{% endblock %}

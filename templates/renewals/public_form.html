@@ -1,0 +1,36 @@
+{% extends "base_public.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Saison {{ req.rollover.target_season }} · {{ club.club_name }}{% endblock %}
+{% block wrap_class %}wide{% endblock %}
+{% block brand_title %}{{ club.club_name }}{% endblock %}
+{% block brand_sub %}Saison {{ req.rollover.target_season }} — vérification des données{% endblock %}
+{% block content %}
+<h1 class="h4 mb-2">Vérification des données de {{ member.display_name }}</h1>
+<p class="text-muted">Voici les informations que le club a enregistrées. Corrigez ce qui a changé, puis cliquez sur <strong>« Confirmer mes données »</strong>. Le comité relira vos modifications avant de les enregistrer. Si {{ member.first_name }} ne souhaite pas continuer, utilisez la section <strong>« Démission »</strong> en bas de page.</p>
+<p class="small text-muted mb-4">Lien personnel valable jusqu'au {{ req.expires_at|date:"d.m.Y" }}.</p>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="action" value="confirm">
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  {{ form|crispy }}
+  <div class="small text-muted border-top pt-3 mt-3">{{ privacy_notice|linebreaksbr }}</div>
+  <button class="btn btn-primary btn-lg w-100 mt-3" type="submit"><i class="bi bi-check2-circle"></i> Confirmer mes données</button>
+</form>
+
+<details class="mt-4 border rounded-3 p-3">
+  <summary class="fw-semibold text-danger"><i class="bi bi-door-open"></i> Démission : {{ member.first_name }} quitte le club</summary>
+  <form method="post" class="mt-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="resign">
+    <label class="form-label" for="resign_remark">Un mot pour le comité (facultatif)</label>
+    <textarea class="form-control mb-3" id="resign_remark" name="resign_remark" rows="3" maxlength="2000"></textarea>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" id="confirm_resign" name="confirm_resign">
+      <label class="form-check-label" for="confirm_resign">Je confirme que {{ member.display_name }} quitte le Cercle d'Escrime de Founex. Le comité supprimera ensuite sa fiche de membre.</label>
+    </div>
+    <button class="btn btn-outline-danger" type="submit">Annoncer la démission</button>
+  </form>
+</details>
+{% endblock %}
+{% block footer %}{{ club.club_name }} · {{ club.street }}, {{ club.postal_code }} {{ club.city }}{% endblock %}

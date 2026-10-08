@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Passage à la saison {{ rollover.target_season }}{% endblock %}
+{% block page_title %}Passage à la saison {{ rollover.target_season }}{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Lancé le {{ rollover.created_at|date:"d.m.Y" }}{% if rollover.created_by %} par {{ rollover.created_by.get_full_name|default:rollover.created_by.username }}{% endif %} · {{ requests|length }} invitation(s)</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'dashboard:index' %}"><i class="bi bi-arrow-left"></i> Tableau de bord</a>
+<a class="btn btn-outline-primary" href="{% url 'renewals:launch' %}?saison={{ rollover.target_season }}"><i class="bi bi-person-plus"></i> Inviter d'autres membres</a>
+{% endblock %}
+{% block content %}
+{% if dev_links %}
+<div class="alert alert-warning small">
+  <strong>Mode développement local :</strong> aucun serveur email n'est configuré, les emails ne partent pas réellement. Liens personnels envoyés :
+  <ul class="mb-0 mt-1">{% for name, link in dev_links %}<li>{{ name }} : <a href="{{ link }}" target="_blank" class="text-break">{{ link }}</a></li>{% endfor %}</ul>
+</div>
+{% endif %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card stat-card"><span class="stat-icon"><i class="bi bi-envelope"></i></span><span><span class="stat-value">{{ counts.SENT }}</span><br><span class="stat-label">sans réponse</span></span></div></div>
+  <div class="col-6 col-md-3"><div class="card stat-card"><span class="stat-icon warning"><i class="bi bi-person-check"></i></span><span><span class="stat-value">{{ counts.TO_VALIDATE }}</span><br><span class="stat-label">données à valider</span></span></div></div>
+  <div class="col-6 col-md-3"><div class="card stat-card"><span class="stat-icon" style="background:#fde8e8;color:#b42318"><i class="bi bi-door-open"></i></span><span><span class="stat-value">{{ counts.RESIGNATION }}</span><br><span class="stat-label">démissions à confirmer</span></span></div></div>
+  <div class="col-6 col-md-3"><div class="card stat-card"><span class="stat-icon success"><i class="bi bi-check2-circle"></i></span><span><span class="stat-value">{{ counts.VALIDATED }}</span><br><span class="stat-label">validées</span></span></div></div>
+</div>
+<div class="card">
+  <div class="table-responsive"><table class="table table-hover align-middle">
+    <thead><tr><th>Membre</th><th>Email</th><th>Statut</th><th>Réponse</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>
+    {% for r in requests %}
+    <tr>
+      <td class="fw-semibold">{% if r.member %}<a href="{% url 'members:detail' r.member.pk %}">{{ r.member_name }}</a>{% else %}{{ r.member_name }}{% endif %}</td>
+      <td class="small">{{ r.email|default:"—" }}{% if r.send_error %}<div class="text-danger">{{ r.send_error|truncatechars:80 }}</div>{% endif %}</td>
+      <td><span class="badge-status renewal-{{ r.status }}">{{ r.get_status_display }}</span></td>
+      <td class="small text-muted">{{ r.responded_at|date:"d.m.Y H:i"|default:"—" }}{% if r.status == 'TO_VALIDATE' %} · {{ r.changes|length }} modification(s){% endif %}</td>
+      <td class="text-end text-nowrap">
+        {% if r.to_process %}<a class="btn btn-sm btn-primary" href="{% url 'renewals:review' r.pk %}">Traiter</a>
+        {% elif r.status != 'SENT' and r.status != 'FAILED' %}<a class="btn btn-sm btn-link" href="{% url 'renewals:review' r.pk %}">Voir</a>{% endif %}
+        {% if r.member and r.status == 'SENT' or r.member and r.status == 'FAILED' %}
+        <form method="post" action="{% url 'renewals:resend' r.pk %}" class="d-inline" data-confirm="Renvoyer l'invitation à {{ r.member_name }} ? L'ancien lien ne fonctionnera plus.">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="Renvoyer l'invitation"><i class="bi bi-arrow-repeat"></i> Renvoyer</button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}<tr><td colspan="5"><div class="empty-state">Aucune invitation.</div></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

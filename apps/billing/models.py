@@ -84,7 +84,9 @@ class Invoice(models.Model):
 
     number = models.CharField("Numéro", max_length=20, unique=True)
     kind = models.CharField("Type", max_length=12, choices=InvoiceKind.choices, default=InvoiceKind.COTISATION)
-    member = models.ForeignKey(Member, on_delete=models.PROTECT, related_name="invoices")
+    # Facultatif : si la fiche est supprimée (ex. démission confirmée), la facture est conservée (archives
+    # comptables) avec sa copie du nom et de l'adresse du débiteur (champs debtor_*).
+    member = models.ForeignKey(Member, null=True, blank=True, on_delete=models.SET_NULL, related_name="invoices")
     batch = models.ForeignKey(InvoiceBatch, null=True, blank=True, on_delete=models.SET_NULL, related_name="invoices")
     season = models.CharField("Saison", max_length=9)
 
@@ -144,6 +146,11 @@ class Invoice(models.Model):
     def is_cotisation(self):
         return self.kind == InvoiceKind.COTISATION
 
+    @property
+    def debtor_label(self):
+        """Nom à afficher : celui de la fiche, ou la copie conservée sur la facture si la fiche a été supprimée."""
+        return self.member.display_name if self.member_id and self.member else self.debtor_name
+
     def resolve_recipient(self):
         """
         Adresse à laquelle envoyer la facture maintenant.
@@ -152,9 +159,10 @@ class Invoice(models.Model):
         - cotisation / essai : toujours l'adresse de contact actuelle de la fiche (parent 1 pour un mineur),
           pour qu'une adresse corrigée après la génération soit bien prise en compte.
         """
+        member_email = self.member.primary_email if self.member_id and self.member else ""
         if self.is_manual:
-            return self.recipient_email or self.member.primary_email or ""
-        return self.member.primary_email or self.recipient_email or ""
+            return self.recipient_email or member_email or ""
+        return member_email or self.recipient_email or ""
 
     @property
     def display_recipient(self):

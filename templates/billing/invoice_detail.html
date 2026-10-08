@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Facture {{ invoice.number }}{% endblock %}
 {% block page_title %}Facture {{ invoice.number }} <span class="badge-status inv-{{ invoice.status }} ms-2 align-middle">{{ invoice.get_status_display }}</span>{% endblock %}
-{% block page_subtitle %}<p class="app-subtitle"><a href="{% url 'members:detail' invoice.member.pk %}">{{ invoice.member.display_name }}</a> · saison {{ invoice.season }}{% if invoice.batch %} · lot <a href="{% url 'billing:batch_detail' invoice.batch.pk %}">{{ invoice.batch.label }}</a>{% endif %}</p>{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">{% if invoice.member %}<a href="{% url 'members:detail' invoice.member.pk %}">{{ invoice.member.display_name }}</a>{% else %}{{ invoice.debtor_name }} <span class="badge text-bg-light">fiche supprimée</span>{% endif %} · saison {{ invoice.season }}{% if invoice.batch %} · lot <a href="{% url 'billing:batch_detail' invoice.batch.pk %}">{{ invoice.batch.label }}</a>{% endif %}</p>{% endblock %}
 {% block page_actions %}
 <a class="btn btn-outline-secondary" href="{% url 'billing:invoice_pdf' invoice.pk %}" target="_blank"><i class="bi bi-file-earmark-pdf"></i> Ouvrir le PDF</a>
 {% if invoice.is_unpaid %}

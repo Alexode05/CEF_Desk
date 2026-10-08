@@ -1,0 +1,18 @@
+{% extends "base_public.html" %}
+{% block title %}Merci · {{ club.club_name }}{% endblock %}
+{% block brand_title %}{{ club.club_name }}{% endblock %}
+{% block brand_sub %}Saison {{ req.rollover.target_season }}{% endblock %}
+{% block content %}
+<div class="text-center py-3">
+  {% if resigned %}
+  <i class="bi bi-door-open text-secondary" style="font-size:3rem"></i>
+  <h1 class="h4 mt-3">Démission transmise</h1>
+  <p class="text-muted">Le comité a été informé de la démission de {{ req.member_name }}. Merci pour ces années d'escrime au club, et à bientôt peut-être sur la piste !</p>
+  {% else %}
+  <i class="bi bi-check-circle-fill text-success" style="font-size:3rem"></i>
+  <h1 class="h4 mt-3">Merci !</h1>
+  <p class="text-muted">Vos données ont été transmises au comité, qui les vérifiera et les enregistrera pour la saison {{ req.rollover.target_season }}.</p>
+  {% endif %}
+</div>
+{% endblock %}
+{% block footer %}{% endblock %}

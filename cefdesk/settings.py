@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "apps.formbuilder",
     "apps.mailing",
     "apps.exports",
+    "apps.renewals",
 ]
 
 MIDDLEWARE = [

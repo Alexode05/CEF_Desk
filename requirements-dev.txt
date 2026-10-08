@@ -2,3 +2,4 @@
 # Outils de développement / contrôle qualité (non nécessaires en production)
 pymupdf>=1.24
 opencv-python-headless>=4.9
+pyflakes>=3.2

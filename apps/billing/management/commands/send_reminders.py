@@ -16,7 +16,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         sent, errors = services.run_due_reminders()
         for inv in sent:
-            self.stdout.write(f"Relance envoyée : {inv.number} ({inv.member.display_name})")
+            self.stdout.write(f"Relance envoyée : {inv.number} ({inv.debtor_label})")
         for e in errors:
             self.stderr.write(f"Erreur : {e}")
         self.stdout.write(self.style.SUCCESS(f"{len(sent)} relance(s) envoyée(s), {len(errors)} erreur(s)."))

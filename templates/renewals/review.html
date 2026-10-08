@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}{{ req.member_name }} — saison {{ req.rollover.target_season }}{% endblock %}
+{% block page_title %}{{ req.member_name }} <span class="badge-status renewal-{{ req.status }} ms-2 align-middle">{{ req.get_status_display }}</span>{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Passage à la saison {{ req.rollover.target_season }}{% if req.responded_at %} · réponse reçue le {{ req.responded_at|date:"d.m.Y à H:i" }}{% endif %}{% if req.processed_at %} · traitée le {{ req.processed_at|date:"d.m.Y" }}{% if req.processed_by %} par {{ req.processed_by.get_full_name|default:req.processed_by.username }}{% endif %}{% endif %}</p>{% endblock %}
+{% block page_actions %}
+<a class="btn btn-outline-secondary" href="{% url 'renewals:rollover' req.rollover_id %}"><i class="bi bi-arrow-left"></i> Suivi des réponses</a>
+{% if member %}<a class="btn btn-outline-secondary" href="{% url 'members:detail' member.pk %}"><i class="bi bi-person"></i> Ouvrir la fiche</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% if req.remark %}
+<div class="alert alert-light border"><strong>Remarque du membre :</strong> {{ req.remark|linebreaksbr }}</div>
+{% endif %}
+
+{% if req.status == 'RESIGNATION' %}
+<div class="card border-danger" style="max-width:720px">
+  <div class="card-header text-danger"><i class="bi bi-door-open"></i> Démission annoncée</div>
+  <div class="card-body">
+    {% if member %}
+    <p>{{ req.member_name }} annonce quitter le club. Confirmer la démission <strong>supprime définitivement la fiche</strong> (ID <code>{{ member.member_id }}</code>). Ses factures sont conservées dans la comptabilité, avec le nom et l'adresse qui y figurent.</p>
+    {% if member.invoices.unpaid.exists %}<div class="alert alert-warning">Cette fiche a encore une facture non réglée : marquez-la payée ou annulez-la avant de confirmer la démission.</div>{% endif %}
+    <form method="post" class="mb-3">{% csrf_token %}
+      <input type="hidden" name="action" value="confirm_resignation">
+      <label class="form-label">Pour confirmer, recopiez l'ID de la fiche : <code>{{ member.member_id }}</code></label>
+      <input class="form-control mb-3" name="confirm" autocomplete="off" required>
+      <button class="btn btn-danger" type="submit" {% if member.invoices.unpaid.exists %}disabled{% endif %}><i class="bi bi-trash"></i> Confirmer la démission et supprimer la fiche</button>
+    </form>
+    {% else %}
+    <p class="mb-3">La fiche n'existe plus.</p>
+    <form method="post" class="mb-3">{% csrf_token %}<input type="hidden" name="action" value="confirm_resignation"><button class="btn btn-danger" type="submit">Clore la démission</button></form>
+    {% endif %}
+    <form method="post" data-confirm="Garder la fiche de {{ req.member_name }} (la démission ne sera pas appliquée) ?">{% csrf_token %}<input type="hidden" name="action" value="keep"><button class="btn btn-outline-secondary btn-sm" type="submit">Ne pas supprimer : garder la fiche</button></form>
+  </div>
+</div>
+
+{% else %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">{% if req.status == 'TO_VALIDATE' %}Modifications demandées{% else %}Modifications{% endif %}</div>
+      {% if req.changes %}
+      <div class="table-responsive"><table class="table align-middle">
+        <thead><tr><th>Champ</th><th>Actuellement sur la fiche</th><th>Nouvelle valeur</th></tr></thead>
+        <tbody>{% for c in req.changes %}<tr><td class="fw-semibold">{{ c.label }}{% if c.sensitive %} <i class="bi bi-shield-lock text-muted" title="Donnée sensible"></i>{% endif %}</td><td class="text-muted">{{ c.old }}</td><td class="text-primary fw-semibold">{{ c.new }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% else %}
+      <div class="card-body"><p class="mb-0"><i class="bi bi-check2-circle text-success"></i> Aucune modification : le membre confirme les données actuelles de sa fiche.</p></div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-5">
+    {% if billing_form %}
+    <div class="card">
+      <div class="card-header">Valider pour la saison {{ req.rollover.target_season }}</div>
+      <div class="card-body">
+        <p class="small text-muted">Comme pour une inscription : confirmez les informations de facturation (non demandées au membre). Les modifications ci-contre sont appliquées à la fiche à la validation.</p>
+        <form method="post" novalidate>{% csrf_token %}
+          <input type="hidden" name="action" value="validate">
+          {{ billing_form|crispy }}
+          <button class="btn btn-success w-100" type="submit"><i class="bi bi-check2-circle"></i> Valider et mettre à jour la fiche</button>
+        </form>
+      </div>
+    </div>
+    {% elif req.status == 'VALIDATED' %}
+    <div class="card"><div class="card-body"><i class="bi bi-check-circle-fill text-success"></i> Données validées : la fiche a été mise à jour.</div></div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

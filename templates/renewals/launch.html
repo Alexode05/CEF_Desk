@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Passage à la saison suivante{% endblock %}
+{% block page_title %}Passage à la saison suivante{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Chaque membre actif reçoit un email avec un lien personnel : il vérifie ses données (et les corrige si besoin) ou annonce sa démission. Les réponses arrivent ici, à valider comme une inscription.</p>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'dashboard:index' %}"><i class="bi bi-arrow-left"></i> Tableau de bord</a>{% endblock %}
+{% block content %}
+{% if existing %}
+<div class="alert alert-info d-flex gap-2 align-items-start"><i class="bi bi-info-circle-fill mt-1"></i>
+  <div>Un passage à la saison <strong>{{ existing.target_season }}</strong> a déjà été lancé. Seuls les membres pas encore invités recevront l'email. <a href="{% url 'renewals:rollover' existing.pk %}">Voir le suivi des réponses</a>.</div>
+</div>
+{% endif %}
+<form method="post" novalidate data-confirm="Envoyer l'email de vérification aux membres cochés ?">
+  {% csrf_token %}
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">Email envoyé</div>
+        <div class="card-body">
+          {{ form.target_season|as_crispy_field }}
+          {{ form.subject|as_crispy_field }}
+          {{ form.body|as_crispy_field }}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Membres actifs ({{ rows|length }})</span>
+          <label class="small fw-normal"><input class="form-check-input me-1" type="checkbox" data-check-all="input.row-check" checked> tout cocher</label>
+        </div>
+        <div class="table-responsive" style="max-height:520px;overflow:auto"><table class="table table-sm align-middle">
+          <thead><tr><th></th><th>Membre</th><th>Email utilisé</th></tr></thead>
+          <tbody>
+          {% for m, email, invited in rows %}
+          <tr class="{% if invited %}text-muted{% endif %}">
+            <td>{% if invited %}<i class="bi bi-check2" title="Déjà invité pour cette saison"></i>{% elif email %}<input class="form-check-input row-check" type="checkbox" name="members" value="{{ m.pk }}" checked aria-label="Inviter {{ m.display_name }}">{% endif %}</td>
+            <td><a href="{% url 'members:detail' m.pk %}">{{ m.display_name }}</a> <span class="small text-muted">{{ m.get_profile_display }}</span></td>
+            <td class="small">{% if invited %}déjà invité{% elif email %}{{ email }}{% else %}<span class="text-danger">aucune adresse</span>{% endif %}</td>
+          </tr>
+          {% empty %}<tr><td colspan="3" class="text-muted">Aucun membre actif.</td></tr>{% endfor %}
+          </tbody>
+        </table></div>
+        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
+          <span class="small text-muted"><span data-selection-count>0</span> membre(s) coché(s) · adresse de facturation (parent 1 pour un mineur)</span>
+          <button class="btn btn-primary" type="submit" data-needs-selection><i class="bi bi-send"></i> Envoyer les invitations</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+{% if rollovers %}
+<div class="card mt-4">
+  <div class="card-header">Passages de saison précédents</div>
+  <ul class="list-group list-group-flush">
+    {% for r in rollovers %}<li class="list-group-item d-flex justify-content-between"><a href="{% url 'renewals:rollover' r.pk %}">Saison {{ r.target_season }}</a><span class="small text-muted">lancé le {{ r.created_at|date:"d.m.Y" }}</span></li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  // Changer de saison recharge la page : la liste « déjà invité » dépend de la saison choisie.
+  var s = document.getElementById("id_target_season");
+  if (s) s.addEventListener("change", function () { window.location = "?saison=" + encodeURIComponent(s.value); });
+})();
+</script>
+{% endblock %}

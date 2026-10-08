@@ -32,7 +32,7 @@
     <tr data-href="{{ inv.get_absolute_url }}" class="{% if inv.status == 'ANNULEE' %}text-muted{% endif %}">
       <td>{% if inv.status != 'ANNULEE' %}<form method="post" action="{% url 'billing:invoice_toggle_paid' inv.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input class="form-check-input" type="checkbox" onchange="this.form.submit()" {% if inv.status == 'PAYEE' %}checked{% endif %} title="Marquer payée / non payée"></form>{% endif %}</td>
       <td class="text-nowrap">{{ inv.number }}{% if inv.is_manual %} <span class="badge text-bg-light" title="Facture créée à la main">manuelle</span>{% endif %}{% if inv.is_trial %} <span class="badge text-bg-light" title="Cours d'essai">essai</span>{% endif %}</td>
-      <td class="fw-semibold">{{ inv.member.display_name }}</td>
+      <td class="fw-semibold">{{ inv.debtor_label }}{% if not inv.member_id %} <span class="badge text-bg-light" title="La fiche du membre a été supprimée ; la facture est conservée">fiche supprimée</span>{% endif %}</td>
       <td>{{ inv.season }}</td>
       <td class="text-end text-nowrap">CHF {{ inv.amount|floatformat:2 }}</td>
       <td class="text-nowrap">{{ inv.issue_date|date:"d.m.Y" }}</td>

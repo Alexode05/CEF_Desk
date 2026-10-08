@@ -18,7 +18,7 @@ Si une décision de conception change en cours de développement, mettre à jour
 
 **Dernière mise à jour : 8 octobre 2026** (code poussé sur GitHub `Alexode05/CEF_Desk`, branche `main`). Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Retours d'Alex du 19.09 traités : voir « Évolutions demandées par Alex » ci-dessous. Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
 
-Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (102 tests, verts).
+Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (115 tests, verts).
 
 | Module | État | Où |
 |---|---|---|
@@ -30,6 +30,7 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 | Formulaires : éditeur structuré adossé aux champs de la fiche, champ « Type d'inscription » Mineur/Majeur, règles conditionnelles, page publique + honeypot + délai minimal, fiche « en attente », email récapitulatif complet au secrétariat, copie JSON du modèle dans Club/Formulaires | Terminé | `apps/formbuilder` |
 | Mailing : listes dynamiques/statiques, email groupé individuel, exclusion ponctuelle, passerelle vers la facturation groupée | Terminé | `apps/mailing` |
 | Export CSV 3 variantes (Excel Windows / macOS / Numbers), AVS exclu sauf choix explicite | Terminé (ouverture réelle dans Excel/Numbers **non testée** — à faire par Alex) | `apps/exports` |
+| Passage à la saison suivante : bouton du tableau de bord, email à chaque membre actif avec lien personnel, formulaire public (données modifiables + démission), réponses validées comme une inscription, démission confirmée par le comité (fiche supprimée, factures conservées) | Terminé | `apps/renewals` |
 | Sauvegardes : commande `backup` (BD + media, rétention 30 j) à planifier | Terminé (planification à faire chez l'hébergeur) | `apps/dashboard/management/commands/backup.py` |
 
 **Évolutions demandées par Alex (19.09.2026) — faites :**
@@ -63,6 +64,11 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 - Nouveau type de liste `MailingList.Kind.BILLING` + `billing_rule` (MEMBERSHIP / TRIAL) ; deux listes système créées par la migration `mailing/0003` (et par `seed_reference_data` via `billing_lists.ensure_billing_lists`). Contenu **calculé à chaque affichage** dans `apps/mailing/billing_lists.py` : rien n'est stocké, donc l'ajout à la validation et la sortie à l'envoi sont automatiques.
 - Inscriptions définitives = Mineur/Majeur au statut Actif sans facture COTISATION de la saison au statut Envoyée/Relancée/Payée ; cours d'essai = profil Essai au statut Essai sans facture ESSAI envoyée (toutes saisons). Listes non modifiables/supprimables ; type non proposé à la création.
 
+**Passage à la saison suivante (08.10.2026, demande d'Alex) — fait :**
+- Nouvelle app `apps/renewals` : `SeasonRollover` (un par saison préparée) et `RenewalRequest` (invitation + réponse d'un membre ; jeton aléatoire dont seul le hachage SHA-256 est stocké, valable 60 jours, usage unique). Lien public `renewals:public_form` autorisé par le middleware (nom d'URL). Formulaire `RenewalForm` construit depuis le registre des champs (modèle de fiche du profil, hors `NOT_IN_PUBLIC_FORMS`) ; AVS jamais affiché ni envoyé par email en clair.
+- Les réponses sont enregistrées « à valider » (`proposed` = valeurs modifiées seulement) ; la validation applique uniquement ces champs (`forms.apply_proposed`), groupes non publics conservés.
+- Suppression d'une fiche : `members.services.delete_member_keep_invoices` (refus si facture impayée) ; `Invoice.member` est désormais **facultatif** (SET_NULL) et `Invoice.debtor_label` remplace `invoice.member.display_name` partout (facture d'une fiche supprimée).
+
 **Points à traiter avec Alex (ne pas trancher seul) :**
 - **Validation SIX** : le portail officiel https://validation.iso-payments.ch exige un compte utilisateur → Alex doit s'y inscrire et déposer `docs/exemples/exemple-qr-facture.pdf`. En attendant, `python manage.py check_qrbill` décode le QR du PDF réel et le vérifie contre la norme (passe : adresses structurées obligatoires IG 2.3, référence QR valide, 46 mm, position OK).
 - Montants des 12 tarifs (barème vide → facturation bloquée pour les membres concernés).
@@ -78,6 +84,9 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 - Mineur sans adresse du parent 1 : la facture part au parent 2, à défaut à l'élève (repli choisi par défaut). Si le parent 1 doit être strictement exigé (facture bloquée tant qu'il manque), à décider.
 - Les listes de diffusion de mineurs écrivent désormais au parent 1 uniquement (le parent 2 ne reçoit pas les emails groupés) : à préciser s'il doit être aussi destinataire ou en copie.
 - Le tarif du cours d'essai (50 CHF) est un réglage modifiable dans Paramètres du club, pas une constante : à confirmer que c'est voulu.
+- Passage de saison : seuls les membres au statut **Actif** sont invités (pas « Licence uniquement ») ; lien valable 60 jours ; pas de relance automatique des non-répondants (bouton « Renvoyer » manuel) ; un non-répondant reste actif. À confirmer.
+- Suppression d'une fiche (démission ou autre) : les factures sont conservées avec nom et adresse (archivage comptable légal), la suppression est refusée tant qu'une facture est impayée. À confirmer.
+- L'email de notification d'une **inscription** (formulaire public) contient encore toutes les réponses en clair, **N° AVS compris** ; l'email du passage de saison, lui, le masque. Proposer d'aligner (masquer l'AVS dans la notification d'inscription).
 - Liste « Inscriptions définitives à facturer » : les fiches « Licence uniquement » en sont exclues (elles n'ont souvent pas de modalité ni de tarif) ; à confirmer. Les fiches créées directement « Actif » par le comité y entrent aussi, pas seulement celles validées depuis un formulaire.
 
 **Bugs connus / limites :** aucun bug bloquant connu. HTTPS local non activé (réglages HTTPS prêts via `DJANGO_FORCE_HTTPS=True` pour la production). Mot de passe oublié : lien « Mot de passe oublié » de la page de connexion (envoi par email). La limitation des tentatives repose sur le cache Django (mémoire locale) : prévoir un cache partagé en production si plusieurs processus.

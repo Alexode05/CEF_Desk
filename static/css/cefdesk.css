@@ -163,3 +163,12 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neu
 .role-badge-remove { border: none; background: transparent; color: inherit; line-height: 1; padding: 0; font-size: 1.15rem; opacity: .55; cursor: pointer; }
 .role-badge-remove:hover { opacity: 1; color: #b42318; }
 .inv-AUCUNE { background: #f0f3f7; color: #6b7a8c; }
+
+/* ---- Passage de saison ---- */
+.renewal-SENT { background: #eceff3; color: #5b6878; }
+.renewal-TO_VALIDATE { background: #fdf3d8; color: #9a6d00; }
+.renewal-RESIGNATION { background: #fde8e8; color: #b42318; }
+.renewal-VALIDATED { background: #e2f3e8; color: #1e7a45; }
+.renewal-RESIGNED { background: #eceff3; color: #5b6878; }
+.renewal-KEPT { background: #e6edf7; color: #2c5282; }
+.renewal-FAILED { background: #fde8e8; color: #b42318; }

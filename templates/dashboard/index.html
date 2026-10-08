@@ -3,6 +3,7 @@
 {% block page_title %}Tableau de bord{% endblock %}
 {% block page_subtitle %}<p class="app-subtitle">Saison {{ current_season }} · vue d'ensemble partagée par tout le comité</p>{% endblock %}
 {% block page_actions %}
+<a class="btn btn-outline-primary" href="{% url 'renewals:launch' %}"><i class="bi bi-calendar2-range"></i> Passage à la saison suivante</a>
 <a class="btn btn-primary" href="{% url 'members:create' %}"><i class="bi bi-person-plus"></i> Nouveau contact</a>
 {% endblock %}
 {% block content %}
@@ -48,7 +49,7 @@
           {% for inv in unpaid %}
             <tr data-href="{% url 'billing:invoice_detail' inv.pk %}">
               <td class="text-nowrap">{{ inv.number }}</td>
-              <td>{{ inv.member.display_name }}</td>
+              <td>{{ inv.debtor_label }}</td>
               <td class="text-end text-nowrap">CHF {{ inv.amount|floatformat:2 }}</td>
               <td class="text-nowrap">{{ inv.issue_date|date:"d.m.Y" }}</td>
               <td class="text-nowrap">{% if inv.next_reminder_date %}{{ inv.next_reminder_date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
@@ -88,6 +89,30 @@
       <div class="empty-state"><i class="bi bi-inbox"></i>Aucune inscription en attente.</div>
       {% endif %}
     </div>
+
+    {% if renewals_to_process_count %}
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar2-range me-1"></i> Passage de saison : réponses à traiter <span class="badge text-bg-warning">{{ renewals_to_process_count }}</span></span>
+        <a class="small" href="{% url 'renewals:launch' %}">Suivi</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover table-clickable">
+          <thead><tr><th>Membre</th><th>Saison</th><th>Réponse</th><th>Reçue le</th></tr></thead>
+          <tbody>
+          {% for r in renewals_to_process %}
+            <tr data-href="{% url 'renewals:review' r.pk %}">
+              <td class="fw-semibold">{{ r.member_name }}</td>
+              <td>{{ r.rollover.target_season }}</td>
+              <td><span class="badge-status renewal-{{ r.status }}">{% if r.status == 'RESIGNATION' %}Démission à confirmer{% else %}Données à valider{% if r.changes %} ({{ r.changes|length }} modif.){% endif %}{% endif %}</span></td>
+              <td class="text-nowrap">{{ r.responded_at|date:"d.m.Y H:i" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   <div class="col-lg-5">

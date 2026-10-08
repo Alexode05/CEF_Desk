@@ -181,6 +181,10 @@ Champs calculés/automatiques à implémenter : génération de l'ID (`prenom.no
 
 **Décision (19.09.2026, demande d'Alex) :** le comité peut éditer le format de chaque type de fiche (Mineur, Majeur, Essai) depuis Paramètres du club → « Modèle des fiches membres ». Chaque profil a son propre modèle, indépendant des autres. Pour chaque champ : **libellé affiché**, **section** (Identité et adresse, Adhésion, Contact, Escrime, Entraînement, Finance, Divers, Champs personnalisés), **position** dans la section (▲ ▼), **présence sur la fiche** de ce profil et caractère **sensible**. Les champs personnalisés (texte, liste, dates, jours de la semaine…) se créent depuis le même écran. Garde-fous : Prénom, Nom et Statut ne peuvent pas être masqués ; le N° AVS reste toujours sensible ; un bouton rétablit le modèle d'origine d'un profil. Les formulaires d'inscription, les colonnes de liste, les filtres et les exports suivent automatiquement (une seule source de vérité, cf. section 7). Le numéro de licence, le statut, la tranche tarifaire, la réduction famille, le rôle et les remarques internes restent réservés au comité : ils ne sont jamais proposés dans un formulaire public.
 
+### Suppression d'une fiche
+
+**Décision (08.10.2026) :** supprimer une fiche (démission confirmée, essai concluant, erreur) la supprime définitivement, mais **ses factures sont conservées** dans la comptabilité (obligation d'archivage), avec le nom et l'adresse figurant sur chacune ; elles apparaissent alors avec la mention « fiche supprimée ». La suppression est **refusée tant qu'une facture n'est ni payée ni annulée**. La suppression reste une action explicite : il faut recopier l'ID de la fiche.
+
 ### Validation des inscriptions
 
 **Décision : les soumissions de formulaire sont validées par le comité avant que le membre ne devienne actif.** *Implémenté (19.09.2026) :* le bouton « Valider l'inscription » de la fiche ouvre une fenêtre où le comité choisit la **tranche tarifaire**, confirme la **modalité d'entraînement**, coche la **réduction famille** si besoin et fixe la date d'entrée ; le montant de la cotisation s'affiche en direct, puis la fiche passe à « Actif » en une seule étape (un cours d'essai passe simplement à « Essai »). (Ça répond aux questions ouvertes correspondantes dans cette section et dans la section 7 — une soumission crée une fiche avec un statut "en attente de validation", pas directement "Actif".)
@@ -461,6 +465,19 @@ Tu me laisses proposer la meilleure méthode — voici ce que je recommande, ave
 
 - Un même mécanisme de formulaire doit couvrir : inscription complète (nouveau membre à l'année), inscription à un cours d'essai (fiche allégée).
 - *(Un formulaire séparé pour les événements ponctuels — compétitions, stages — est écarté pour l'instant, pas prioritaire pour la V1.)*
+
+### Passage à la saison suivante
+
+**Décision (08.10.2026, demande d'Alex) :** un bouton **« Passage à la saison suivante »** du tableau de bord prépare la réinscription de tous les membres actifs.
+
+1. **Lancement** (page dédiée) : le comité choisit la saison préparée (suivante par défaut), relit le texte de l'email (modifiable ; variables `{prenom}`, `{nom}`, `{saison}`, `{lien}` obligatoire, `{date_limite}`) et les destinataires : tous les membres au statut **Actif**, cochés par défaut, à leur **adresse de facturation** (parent 1 pour un mineur). Les membres sans adresse sont signalés. Un seul passage par saison : relancer pour la même saison n'invite que les membres pas encore invités.
+2. **Email** : chaque membre reçoit un **lien personnel** (valable 60 jours, utilisable une seule fois ; seul un hachage est stocké) vers un formulaire public.
+3. **Formulaire** : il affiche les **données actuelles** de la fiche, modifiables, selon le modèle de fiche du profil (section 4) — sans les champs réservés au comité (statut, tranche tarifaire, réduction famille, rôles, n° de licence, remarques internes…). Le N° AVS n'est **jamais affiché en clair** : seule sa forme masquée apparaît, avec un champ « laisser vide pour ne rien changer ». Seuls les groupes proposés au public (cours) sont modifiables ; les autres (Comité…) ne sont jamais touchés. Une remarque libre peut être ajoutée. Un bloc **« Démission »** (case de confirmation obligatoire, mot facultatif) permet d'annoncer le départ.
+4. **Données confirmées** → reçues **comme une inscription** : email au secrétariat (avec la liste des changements, AVS masqué) et bloc « Passage de saison : réponses à traiter » sur le tableau de bord. Le comité voit, champ par champ, l'ancienne et la nouvelle valeur, confirme la modalité, la tranche tarifaire et la réduction famille, puis **valide** : seules les valeurs modifiées par le membre sont appliquées à la fiche (le reste, éventuellement modifié entre-temps par le comité, est intact).
+5. **Démission** → email au secrétariat et bloc sur le tableau de bord ; la fiche n'est **pas** supprimée automatiquement. Le comité **confirme la suppression** (en recopiant l'ID de la fiche ; factures conservées, refus si une facture est impayée) ou décide de **garder la fiche**.
+6. **Suivi** : page par saison avec, pour chaque membre, le statut (sans réponse, à valider, démission à confirmer, validé, fiche supprimée, fiche conservée, envoi impossible) et un bouton **« Renvoyer »** (nouveau lien, l'ancien cesse de fonctionner).
+
+Les membres qui ne répondent pas restent actifs ; à la nouvelle saison, ils réapparaissent dans la liste « Inscriptions définitives à facturer » comme les autres (section 8).
 
 ## 10. Export de données
 

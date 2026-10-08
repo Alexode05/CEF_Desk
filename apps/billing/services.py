@@ -176,7 +176,7 @@ def generate_pdf(invoice: Invoice, user=None):
     """(Re)génère le PDF, l'attache à la facture et l'archive dans Club/Factures/<saison>/."""
     club = ClubSettings.load()
     pdf_bytes = render_invoice_pdf(club, invoice)
-    filename = f"Facture_{invoice.number}_{member_services._ascii_slug(invoice.member.display_name)}.pdf"
+    filename = f"Facture_{invoice.number}_{member_services._ascii_slug(invoice.debtor_label)}.pdf"
     if invoice.pdf:
         invoice.pdf.delete(save=False)
     invoice.pdf.save(filename, ContentFile(pdf_bytes), save=False)
@@ -195,17 +195,17 @@ def _render_template(text, invoice):
         title = objet = invoice.description
     elif invoice.is_trial:
         title = "Cours d'essai"
-        objet = f"le cours d'essai de {invoice.member.display_name}"
+        objet = f"le cours d'essai de {invoice.debtor_label}"
     else:
         title = f"Cotisation {invoice.season}"
-        objet = f"la cotisation de la saison {invoice.season} de {invoice.member.display_name}"
+        objet = f"la cotisation de la saison {invoice.season} de {invoice.debtor_label}"
         if invoice.training_mode_label:
             objet += f" ({invoice.training_mode_label})"
     values = {
         "saison": invoice.season,
-        "prenom": invoice.member.first_name,
-        "nom": invoice.member.last_name,
-        "destinataire": invoice.member.display_name,
+        "prenom": invoice.member.first_name if invoice.member else invoice.debtor_name,
+        "nom": invoice.member.last_name if invoice.member else "",
+        "destinataire": invoice.debtor_label,
         "titre": title,
         "objet": objet,
         "description": invoice.description,
@@ -226,7 +226,7 @@ def send_invoice_email(invoice: Invoice, user=None, reminder=False):
     club = ClubSettings.load()
     to = invoice.resolve_recipient()
     if not to:
-        raise BillingError(f"{invoice.member.display_name} : aucune adresse email sur la fiche.")
+        raise BillingError(f"{invoice.debtor_label} : aucune adresse email sur la fiche.")
     if to != invoice.recipient_email:  # on garde trace de l'adresse réellement utilisée
         invoice.recipient_email = to
         invoice.save(update_fields=["recipient_email"])
@@ -252,7 +252,7 @@ def send_invoice_email(invoice: Invoice, user=None, reminder=False):
     except Exception as exc:  # noqa: BLE001
         log.ok, log.error = False, str(exc)
         log.save()
-        raise BillingError(f"{invoice.member.display_name} : échec d'envoi ({exc}).") from exc
+        raise BillingError(f"{invoice.debtor_label} : échec d'envoi ({exc}).") from exc
     log.save()
 
     now = timezone.now()

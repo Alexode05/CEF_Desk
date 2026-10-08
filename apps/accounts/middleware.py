@@ -21,6 +21,7 @@ PUBLIC_URL_NAMES = {
     "accounts:password_reset_done",
     "accounts:password_reset_confirm",
     "accounts:password_reset_complete",
+    "renewals:public_form",  # lien personnel du passage de saison (protégé par un jeton secret)
 }
 
 # Préfixes de chemin publics. Les fichiers téléversés (/media/ : factures, documents) n'en font

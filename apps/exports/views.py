@@ -75,7 +75,7 @@ def export_invoices(request):
     headers = ["N°", "Membre", "Saison", "Modalité", "Tranche", "Montant de base", "Réduction famille", "Montant", "Émise le", "Échéance", "Statut", "Envoyée le", "Relances", "Payée le", "Référence", "Email"]
     rows = [
         [
-            i.number, i.member.display_name, i.season, i.training_mode_label, i.bracket_label,
+            i.number, i.debtor_label, i.season, i.training_mode_label, i.bracket_label,
             f"{i.base_amount:.2f}", f"{i.family_discount:.2f}", f"{i.amount:.2f}",
             i.issue_date.strftime("%d.%m.%Y"), i.due_date.strftime("%d.%m.%Y"), i.get_status_display(),
             i.sent_at.strftime("%d.%m.%Y") if i.sent_at else "", i.reminder_count,
