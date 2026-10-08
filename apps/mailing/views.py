@@ -8,12 +8,17 @@ from apps.billing.models import EmailLog
 from apps.dashboard.models import ClubSettings
 from apps.members.models import Member
 
+from .billing_lists import ensure_billing_lists
 from .forms import CampaignForm, MailingListForm
 from .models import Campaign, MailingList
 
 
 def index(request):
-    lists = MailingList.objects.select_related("group").prefetch_related("static_members")
+    ensure_billing_lists()
+    lists = sorted(
+        MailingList.objects.select_related("group").prefetch_related("static_members"),
+        key=lambda ml: (not ml.is_billing, ml.billing_rule, ml.name.lower()),  # listes « à facturer » en tête
+    )
     return render(request, "mailing/index.html", {"lists": lists, "campaigns": Campaign.objects.select_related("mailing_list")[:15]})
 
 
@@ -63,6 +68,13 @@ def list_from_selection(request):
 
 def list_detail(request, pk):
     ml = get_object_or_404(MailingList, pk=pk)
+    if ml.is_billing:
+        # Liste système : contenu calculé, pas de paramètres modifiables.
+        season = ClubSettings.load().current_season_label()
+        members = list(ml.members().prefetch_related("groups", "invoices"))
+        for m in members:
+            m._season_label = season
+        return render(request, "mailing/list_detail.html", {"ml": ml, "members": members, "recipients": ml.recipients(), "season": season})
     form = MailingListForm(request.POST or None, instance=ml)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -85,6 +97,9 @@ def list_set_members(request, pk):
 @require_POST
 def list_delete(request, pk):
     ml = get_object_or_404(MailingList, pk=pk)
+    if ml.is_billing:
+        messages.error(request, f"« {ml.name} » est une liste automatique du système : elle ne peut pas être supprimée.")
+        return redirect("mailing:index")
     ml.delete()
     messages.success(request, f"Liste « {ml.name} » supprimée.")
     return redirect("mailing:index")

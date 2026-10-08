@@ -39,10 +39,10 @@ class ListFromSelectionTests(TestCase):
 
     def test_refuses_empty_selection_duplicate_name_and_foreign_redirect(self):
         self.assertEqual(self.client.post("/mailing/listes/depuis-selection/", {"ids": "", "name": "X"}).status_code, 302)
-        self.assertFalse(MailingList.objects.exists())
+        self.assertFalse(MailingList.objects.exclude(kind="BILLING").exists())
         MailingList.objects.create(name="Déjà là", kind=MailingList.Kind.STATIC)
         self.client.post("/mailing/listes/depuis-selection/", {"ids": str(self.a.pk), "name": "déjà là"})
-        self.assertEqual(MailingList.objects.count(), 1)
+        self.assertEqual(MailingList.objects.exclude(kind="BILLING").count(), 1)
         r = self.client.post("/mailing/listes/depuis-selection/", {"ids": "", "name": "X", "next": "https://evil.example/"})
         self.assertEqual(r.headers["Location"], "/contacts/")  # jamais de redirection hors du site
 

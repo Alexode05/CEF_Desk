@@ -290,7 +290,13 @@ def member_validate(request, pk):
         member.entry_date = cleaned.get("entry_date") or member.entry_date or timezone.localdate()
         member.status = MemberStatus.ACTIF
     member.save()
-    messages.success(request, f"Inscription de {member.display_name} validée — statut « {member.get_status_display()} ».")
+    from apps.mailing.billing_lists import list_name_for
+
+    messages.success(
+        request,
+        f"Inscription de {member.display_name} validée — statut « {member.get_status_display()} ». "
+        f"Ajoutée automatiquement à la liste de diffusion « {list_name_for(member)} ».",
+    )
     return redirect(member)
 
 

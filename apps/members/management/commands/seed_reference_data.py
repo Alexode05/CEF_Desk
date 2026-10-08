@@ -67,4 +67,9 @@ class Command(BaseCommand):
         self.stdout.write("Dossiers Club / Direction / Public créés.")
 
         ClubSettings.load()
+
+        from apps.mailing.billing_lists import ensure_billing_lists
+
+        ensure_billing_lists()
+        self.stdout.write("Listes de diffusion automatiques « à facturer » prêtes.")
         self.stdout.write(self.style.SUCCESS("Données de référence prêtes."))

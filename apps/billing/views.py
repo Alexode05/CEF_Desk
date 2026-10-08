@@ -237,6 +237,11 @@ def batch_create(request):
         initial["ids"] = ids
     if request.GET.get("list"):
         initial["mailing_list"] = request.GET.get("list")
+        from apps.mailing.models import MailingList
+
+        chosen = MailingList.objects.filter(pk=request.GET["list"]).first() if request.GET["list"].isdigit() else None
+        if chosen is not None and chosen.billing_rule == MailingList.BillingRule.TRIAL:
+            initial["label"] = f"Cours d'essai {timezone.localdate():%d.%m.%Y}"
     form = BatchCreateForm(request.POST or None, initial=initial)
     preview = None
     if request.method == "POST" and form.is_valid():

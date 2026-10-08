@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Mailing{% endblock %}
 {% block page_title %}Mailing groupé{% endblock %}
-{% block page_subtitle %}<p class="app-subtitle">Listes de diffusion dynamiques (suivent un groupe) ou statiques (sélection figée), emails groupés, et point de départ de la facturation groupée.</p>{% endblock %}
+{% block page_subtitle %}<p class="app-subtitle">Listes de diffusion automatiques « à facturer », dynamiques (suivent un groupe) ou statiques (sélection figée), emails groupés, et point de départ de la facturation groupée.</p>{% endblock %}
 {% block page_actions %}
 <a class="btn btn-outline-secondary" href="{% url 'mailing:list_create' %}"><i class="bi bi-plus-lg"></i> Nouvelle liste</a>
 <a class="btn btn-primary" href="{% url 'mailing:compose' %}"><i class="bi bi-envelope-paper"></i> Envoyer un email groupé</a>
@@ -16,13 +16,13 @@
         <tbody>
         {% for l in lists %}
         <tr>
-          <td><a class="fw-semibold" href="{% url 'mailing:list_detail' l.pk %}">{{ l.name }}</a>{% if l.description %}<div class="small text-muted">{{ l.description }}</div>{% endif %}</td>
-          <td class="small">{% if l.kind == 'DYNAMIC' %}<i class="bi bi-arrow-repeat"></i> Dynamique{% if l.group %} · {{ l.group.name }}{% endif %}{% else %}<i class="bi bi-pin"></i> Statique{% endif %}</td>
+          <td><a class="fw-semibold" href="{% url 'mailing:list_detail' l.pk %}">{{ l.name }}</a>{% if l.description and not l.is_billing %}<div class="small text-muted">{{ l.description }}</div>{% endif %}</td>
+          <td class="small">{% if l.is_billing %}<span class="badge text-bg-warning"><i class="bi bi-lightning-charge"></i> Automatique</span> à facturer{% elif l.kind == 'DYNAMIC' %}<i class="bi bi-arrow-repeat"></i> Dynamique{% if l.group %} · {{ l.group.name }}{% endif %}{% else %}<i class="bi bi-pin"></i> Statique{% endif %}</td>
           <td class="text-end">{{ l.members.count }}</td>
           <td class="text-end text-nowrap">
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'mailing:compose' %}?list={{ l.pk }}" title="Email groupé"><i class="bi bi-envelope"></i></a>
             <a class="btn btn-sm btn-outline-primary" href="{% url 'billing:batch_create' %}?list={{ l.pk }}" title="Générer les factures de cette liste"><i class="bi bi-receipt"></i> Factures</a>
-            <form method="post" action="{% url 'mailing:list_delete' l.pk %}" class="d-inline" data-confirm="Supprimer la liste « {{ l.name }} » ? Les contacts ne sont pas touchés.">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" title="Supprimer la liste"><i class="bi bi-trash"></i></button></form>
+            {% if not l.is_billing %}<form method="post" action="{% url 'mailing:list_delete' l.pk %}" class="d-inline" data-confirm="Supprimer la liste « {{ l.name }} » ? Les contacts ne sont pas touchés.">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" title="Supprimer la liste"><i class="bi bi-trash"></i></button></form>{% endif %}
           </td>
         </tr>
         {% empty %}<tr><td colspan="4"><div class="empty-state"><i class="bi bi-list-ul"></i>Aucune liste. Créez une liste dynamique par groupe de cours, ou une liste statique depuis une sélection de contacts.</div></td></tr>{% endfor %}

@@ -18,7 +18,7 @@ Si une décision de conception change en cours de développement, mettre à jour
 
 **Dernière mise à jour : 8 octobre 2026** (code poussé sur GitHub `Alexode05/CEF_Desk`, branche `main`). Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Retours d'Alex du 19.09 traités : voir « Évolutions demandées par Alex » ci-dessous. Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
 
-Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (91 tests, verts).
+Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (102 tests, verts).
 
 | Module | État | Où |
 |---|---|---|
@@ -59,6 +59,10 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 - **Cours d'essai facturé 50 CHF** fixes (`ClubSettings.trial_fee`, `Invoice.kind = ESSAI`, bouton sur la fiche, inclus dans la génération par lot). Une seule facture d'essai par fiche.
 - Correction au passage : une facture **manuelle** empêchait à tort la facture de cotisation (et le lot) de la même saison ; seules les cotisations (et les essais) comptent désormais.
 
+**Listes automatiques « à facturer » (08.10.2026, demande d'Alex) — fait :**
+- Nouveau type de liste `MailingList.Kind.BILLING` + `billing_rule` (MEMBERSHIP / TRIAL) ; deux listes système créées par la migration `mailing/0003` (et par `seed_reference_data` via `billing_lists.ensure_billing_lists`). Contenu **calculé à chaque affichage** dans `apps/mailing/billing_lists.py` : rien n'est stocké, donc l'ajout à la validation et la sortie à l'envoi sont automatiques.
+- Inscriptions définitives = Mineur/Majeur au statut Actif sans facture COTISATION de la saison au statut Envoyée/Relancée/Payée ; cours d'essai = profil Essai au statut Essai sans facture ESSAI envoyée (toutes saisons). Listes non modifiables/supprimables ; type non proposé à la création.
+
 **Points à traiter avec Alex (ne pas trancher seul) :**
 - **Validation SIX** : le portail officiel https://validation.iso-payments.ch exige un compte utilisateur → Alex doit s'y inscrire et déposer `docs/exemples/exemple-qr-facture.pdf`. En attendant, `python manage.py check_qrbill` décode le QR du PDF réel et le vérifie contre la norme (passe : adresses structurées obligatoires IG 2.3, référence QR valide, 46 mm, position OK).
 - Montants des 12 tarifs (barème vide → facturation bloquée pour les membres concernés).
@@ -74,6 +78,7 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 - Mineur sans adresse du parent 1 : la facture part au parent 2, à défaut à l'élève (repli choisi par défaut). Si le parent 1 doit être strictement exigé (facture bloquée tant qu'il manque), à décider.
 - Les listes de diffusion de mineurs écrivent désormais au parent 1 uniquement (le parent 2 ne reçoit pas les emails groupés) : à préciser s'il doit être aussi destinataire ou en copie.
 - Le tarif du cours d'essai (50 CHF) est un réglage modifiable dans Paramètres du club, pas une constante : à confirmer que c'est voulu.
+- Liste « Inscriptions définitives à facturer » : les fiches « Licence uniquement » en sont exclues (elles n'ont souvent pas de modalité ni de tarif) ; à confirmer. Les fiches créées directement « Actif » par le comité y entrent aussi, pas seulement celles validées depuis un formulaire.
 
 **Bugs connus / limites :** aucun bug bloquant connu. HTTPS local non activé (réglages HTTPS prêts via `DJANGO_FORCE_HTTPS=True` pour la production). Mot de passe oublié : lien « Mot de passe oublié » de la page de connexion (envoi par email). La limitation des tentatives repose sur le cache Django (mémoire locale) : prévoir un cache partagé en production si plusieurs processus.
 

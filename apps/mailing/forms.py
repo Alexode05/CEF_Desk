@@ -12,6 +12,11 @@ class MailingListForm(forms.ModelForm):
         model = MailingList
         fields = ["name", "kind", "group", "description"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Les listes automatiques « à facturer » sont des listes système : on ne peut pas en créer d'autres.
+        self.fields["kind"].choices = [c for c in MailingList.Kind.choices if c[0] != MailingList.Kind.BILLING]
+
     def clean(self):
         cleaned = super().clean()
         if cleaned.get("kind") == MailingList.Kind.DYNAMIC and not cleaned.get("group"):

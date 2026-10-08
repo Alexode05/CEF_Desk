@@ -418,6 +418,23 @@ Deux fonctionnalités principales :
 - Une liste peut être **dynamique** (= "tous les membres du groupe X", se met à jour automatiquement si le groupe change) ou **statique** (= une sélection figée de contacts choisie manuellement, qui ne bouge pas si les groupes changent ensuite).
 - Utilisées aussi bien pour de simples emails groupés (annonces, infos) que comme base pour la génération/l'envoi de factures groupées.
 
+### Listes automatiques « à facturer »
+
+**Décision (08.10.2026, demande d'Alex) :** deux listes de diffusion **automatiques**, créées d'office par le système, servent à envoyer les factures de manière groupée :
+
+| Liste | Qui y entre automatiquement | Qui en sort automatiquement |
+|---|---|---|
+| **Inscriptions définitives à facturer** | Toute fiche Mineur ou Majeur au statut **Actif** (inscription validée par le comité, ou fiche créée directement active) | Dès que sa facture de cotisation de la saison en cours est **envoyée** (ou relancée, ou marquée payée) |
+| **Cours d'essai à facturer** | Toute fiche « Cours d'essai » au statut **Essai** (essai validé) | Dès que sa facture de cours d'essai est **envoyée** (ou relancée, ou marquée payée) |
+
+Précisions :
+- Une facture seulement **générée** (pas encore envoyée) laisse le membre dans la liste ; une facture **annulée** l'y fait revenir.
+- Une facture **manuelle** (stage, sponsoring…) ne fait pas sortir un membre de la liste des inscriptions.
+- La règle porte sur la **saison en cours** : à la saison suivante, les membres actifs y reviennent pour la nouvelle cotisation. Un cours d'essai, lui, ne se facture qu'une fois par fiche.
+- Les fiches en attente de validation, inactives, « Licence uniquement » et les entreprises n'y figurent pas *(« Licence uniquement » exclu par défaut : à confirmer par Alex)*.
+- Ces deux listes ne peuvent être ni modifiées ni supprimées, et aucune autre liste de ce type ne peut être créée. Leur page indique, pour chaque membre, l'état de sa facture de la saison.
+- Flux d'utilisation : Mailing → liste → « Générer les factures » (étape 1, relecture) → lot → « Envoyer » (étape 2) ; les membres facturés sortent alors de la liste. À la validation d'une inscription, un message indique dans quelle liste le membre vient d'entrer.
+
 ### Génération + envoi groupé des factures : méthode proposée
 
 Tu me laisses proposer la meilleure méthode — voici ce que je recommande, avec le raisonnement :
