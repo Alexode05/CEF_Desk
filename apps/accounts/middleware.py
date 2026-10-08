@@ -1,38 +1,37 @@
 """
-Middleware qui impose connexion + A2F vérifiée sur toute l'interface de gestion.
+Middleware qui impose d'être connecté sur toute l'interface de gestion (y compris l'administration
+technique et les fichiers téléversés).
 
-Seules les URL explicitement publiques (connexion, création de compte, écrans A2F,
-formulaires publics d'inscription, fichiers statiques) sont accessibles sans être
-connecté et vérifié par A2F — cf. cahier des charges section 11.
+Seules les URL explicitement publiques (connexion, création de compte, vérification d'email,
+mot de passe oublié, formulaires publics d'inscription, fichiers statiques CSS/JS) sont
+accessibles sans être connecté — cf. cahier des charges section 11.
 """
 from django.conf import settings
-from django.shortcuts import redirect
+from django.contrib.auth.views import redirect_to_login
 from django.urls import reverse
-
-from django_otp import user_has_device
 
 PUBLIC_URL_NAMES = {
     "accounts:login",
     "accounts:register",
     "accounts:logout",
+    "accounts:verification_sent",
+    "accounts:verify_email",
+    "accounts:resend_verification",
+    "accounts:password_reset",
+    "accounts:password_reset_done",
+    "accounts:password_reset_confirm",
+    "accounts:password_reset_complete",
 }
 
-# Accessibles connecté mais pas encore vérifié A2F.
-TWO_FACTOR_URL_NAMES = {
-    "accounts:two_factor_setup",
-    "accounts:two_factor_verify",
-    "accounts:logout",
-}
-
-# Préfixes de chemin publics (formulaires publics, statiques, médias en dev).
+# Préfixes de chemin publics. Les fichiers téléversés (/media/ : factures, documents) n'en font
+# PAS partie : ils ne sont accessibles qu'aux personnes connectées.
 PUBLIC_PATH_PREFIXES = (
     "/formulaires/public/",
     "/" + settings.STATIC_URL.lstrip("/"),
-    "/" + settings.MEDIA_URL.lstrip("/"),
 )
 
 
-class LoginAndTwoFactorRequiredMiddleware:
+class LoginRequiredMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -41,34 +40,15 @@ class LoginAndTwoFactorRequiredMiddleware:
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         """Appelé après la résolution d'URL : `request.resolver_match` est disponible ici."""
-        path = request.path_info
-        if path.startswith(PUBLIC_PATH_PREFIXES):
+        if request.user.is_authenticated:
             return None
-
+        if request.path_info.startswith(PUBLIC_PATH_PREFIXES):
+            return None
         match = request.resolver_match
         url_name = None
         if match is not None:
             url_name = f"{match.namespace}:{match.url_name}" if match.namespace else match.url_name
-
-        # L'admin Django gère sa propre connexion ; on exige quand même l'A2F.
-        is_admin = path.startswith("/admin/")
-
-        user = request.user
-        if not user.is_authenticated:
-            if url_name in PUBLIC_URL_NAMES:
-                return None
-            if is_admin:
-                return None  # l'admin affiche sa propre page de connexion
-            return redirect(f"{reverse('accounts:login')}?next={request.get_full_path()}")
-
-        # Connecté : l'A2F doit être configurée puis vérifiée pour cette session.
-        if url_name in PUBLIC_URL_NAMES or url_name in TWO_FACTOR_URL_NAMES:
+        if url_name in PUBLIC_URL_NAMES:
             return None
-
-        if not user_has_device(user, confirmed=True):
-            return redirect("accounts:two_factor_setup")
-
-        if not user.is_verified():
-            return redirect(f"{reverse('accounts:two_factor_verify')}?next={request.get_full_path()}")
-
-        return None
+        # Tout le reste (y compris /admin/) passe par la page de connexion de CEF Desk.
+        return redirect_to_login(request.get_full_path(), reverse("accounts:login"))

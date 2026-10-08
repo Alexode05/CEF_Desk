@@ -67,21 +67,15 @@ from decimal import Decimal  # noqa: E402
 
 from django.contrib.auth.models import User  # noqa: E402
 from django.test import Client, override_settings  # noqa: E402
-from django_otp import DEVICE_ID_SESSION_KEY  # noqa: E402
-from django_otp.plugins.otp_totp.models import TOTPDevice  # noqa: E402
 
 from apps.members.models import TariffBracket, TrainingMode  # noqa: E402
 
 
 def verified_client(username="comite"):
-    """Client de test connecté ET vérifié par A2F (le middleware exige les deux)."""
-    user = User.objects.create_user(username, password="x")
-    device = TOTPDevice.objects.create(user=user, name="test", confirmed=True)
+    """Client de test connecté avec un compte comité actif (adresse email vérifiée)."""
+    user = User.objects.create_user(username, email=f"{username}@example.com", password="x")
     client = Client(HTTP_HOST="localhost")
     client.force_login(user)
-    session = client.session
-    session[DEVICE_ID_SESSION_KEY] = device.persistent_id
-    session.save()
     return client
 
 

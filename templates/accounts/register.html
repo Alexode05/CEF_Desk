@@ -3,7 +3,7 @@
 {% block title %}Créer un compte · CEF Desk{% endblock %}
 {% block content %}
 <h1 class="h4 mb-1">Créer un compte comité</h1>
-<p class="text-muted mb-4">Ce compte donne accès à toutes les données du club. Un code d'invitation et l'authentification à deux facteurs sont obligatoires.</p>
+<p class="text-muted mb-4">Ce compte donne accès à toutes les données du club. Un code d'invitation est nécessaire, et votre adresse email devra être vérifiée avant la première connexion.</p>
 <form method="post" novalidate>
   {% csrf_token %}
   {{ form|crispy }}

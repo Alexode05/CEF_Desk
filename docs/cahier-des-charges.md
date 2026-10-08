@@ -48,7 +48,7 @@ Reprend les grandes sections de ClubDesk, avec un périmètre ajusté :
 **Connexion :**
 - Une **page de connexion** est nécessaire pour accéder à l'interface de gestion (rien d'accessible sans être connecté, en dehors des formulaires publics, section 7).
 - Cette page permet aussi bien la **création de nouveaux comptes** (pour ajouter un membre du comité) que la **connexion** avec un compte existant.
-- **Authentification à deux facteurs (A2F) mise en place** dès la V1 (et non simplement "recommandée" — cf. section 11 "Exigences de sécurité", mis à jour en conséquence) : à l'inscription/première connexion, le compte doit configurer l'A2F (ex. application d'authentification type Google Authenticator/Authy — TOTP), puis la saisir à chaque connexion en plus du mot de passe.
+- ~~Authentification à deux facteurs (A2F) par application d'authentification (TOTP)~~ — **retirée le 08.10.2026 sur décision d'Alex.** Nouveau déroulé : à la création du compte, un **email de vérification** est envoyé ; le compte reste inactif tant que le lien (valable 3 jours, renvoi possible) n'a pas été cliqué. Ensuite, la **connexion se fait par mot de passe** (nom d'utilisateur ou adresse email + mot de passe). Mesures compensatoires : mots de passe de 12 caractères minimum, **blocage de 15 minutes après 5 échecs** pour un même identifiant depuis une même adresse IP (20 échecs par IP tous identifiants confondus), « Mot de passe oublié » par lien email, code d'invitation conservé pour la création de compte. *Risque accepté par Alex : un mot de passe volé suffit désormais pour accéder aux données des membres (mineurs, N° AVS).*
 - **Décision d'implémentation (19.09.2026, à confirmer par Alex) :** la création de compte depuis la page de connexion est protégée par un **code d'invitation** du comité (variable d'environnement `CEF_REGISTRATION_CODE`), pour qu'une personne extérieure ne puisse pas créer un compte. Code vide = création de compte désactivée.
 
 **Style visuel :**
@@ -484,7 +484,8 @@ Ce projet traite des données personnelles sensibles (dont celles de mineurs et 
 **Accès et authentification**
 - Toute page/fonction de gestion (tout sauf les formulaires publics d'inscription, section 7) nécessite une **connexion utilisateur** — aucun accès anonyme à l'interface de gestion.
 - Mots de passe : stockage **hashé** (jamais en clair — Django gère ça nativement, s'assurer que ce mécanisme par défaut n'est pas contourné), avec exigence de mot de passe robuste à la création d'un compte.
-- **Authentification à deux facteurs (2FA/A2F) obligatoire** pour tous les comptes du comité (pas seulement recommandée) — cf. section 3 "Interface générale" pour le déroulé (configuration à l'inscription, saisie à chaque connexion).
+- ~~Authentification à deux facteurs (2FA/A2F) obligatoire~~ — **remplacée le 08.10.2026, sur décision d'Alex**, par : **vérification de l'adresse email à l'inscription** (compte inactif tant que le lien n'est pas cliqué) puis **connexion par mot de passe**, avec limitation des tentatives (blocage temporaire après 5 échecs) et réinitialisation du mot de passe par email — cf. section 3 "Interface générale". L'administration technique (`/admin/`) passe par la même page de connexion.
+- Les fichiers téléversés (factures PDF archivées, documents de l'espace de stockage) ne sont jamais servis publiquement : accès réservé aux personnes connectées (en production, ne pas exposer le dossier `media/` par le serveur web).
 - Session utilisateur expirée après une période d'inactivité raisonnable.
 
 **Transport et infrastructure**

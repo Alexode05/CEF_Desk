@@ -21,9 +21,19 @@ python manage.py runserver
 Dans `.env`, définir au minimum `DJANGO_SECRET_KEY` (clé aléatoire longue) et `CEF_REGISTRATION_CODE`
 (code d'invitation à communiquer aux membres du comité pour créer leur compte).
 
-Ouvrir <http://127.0.0.1:8000/>, cliquer « Créer un compte », saisir le code d'invitation, puis
-configurer l'authentification à deux facteurs avec une application type Google/Microsoft Authenticator.
-L'A2F est obligatoire et demandée à chaque connexion.
+Ouvrir <http://127.0.0.1:8000/>, cliquer « Créer un compte » et saisir le code d'invitation. Un email de
+vérification est envoyé : le compte s'active en cliquant sur le lien, puis la connexion se fait avec le nom
+d'utilisateur (ou l'adresse email) et le mot de passe.
+
+En local sans serveur email (`EMAIL_URL` vide, `DJANGO_DEBUG=True`), les emails ne partent pas : ils
+s'affichent dans le terminal du serveur, et le lien de vérification (ou de nouveau mot de passe) est aussi
+affiché directement sur la page. Ce raccourci n'existe jamais en production.
+
+Pour créer un compte administrateur sans passer par l'inscription :
+
+```bash
+python manage.py createsuperuser
+```
 
 ## Premiers réglages après installation
 
@@ -65,4 +75,8 @@ python manage.py test apps
 - `DATABASE_URL=postgres://user:motdepasse@hote:5432/cefdesk` (PostgreSQL)
 - `EMAIL_URL=smtp+tls://utilisateur:motdepasse@mail.infomaniak.com:587`
 - `python manage.py collectstatic`, serveur WSGI (gunicorn/uwsgi) derrière un reverse proxy HTTPS.
+- Ne pas exposer le dossier `media/` (factures, documents) par le serveur web : ces fichiers ne doivent être
+  téléchargés qu'à travers l'application, qui vérifie la connexion.
+- La limitation des tentatives de connexion utilise le cache Django : avec plusieurs processus, configurer un
+  cache partagé (ex. base de données ou Redis) pour qu'elle reste efficace.
 - Remplacer les coordonnées bancaires placeholder et valider une facture sur le portail SIX avant tout envoi réel.

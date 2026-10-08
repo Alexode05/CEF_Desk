@@ -16,13 +16,13 @@ Si une décision de conception change en cours de développement, mettre à jour
 
 *(Section à tenir à jour à la fin de chaque session de travail significative.)*
 
-**Dernière mise à jour : 19 septembre 2026, 2ᵉ session** (code poussé sur GitHub `Alexode05/CEF_Desk`, branche `main`). Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Retours d'Alex du 19.09 traités : voir « Évolutions demandées par Alex » ci-dessous. Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
+**Dernière mise à jour : 8 octobre 2026** (code poussé sur GitHub `Alexode05/CEF_Desk`, branche `main`). Les 8 modules de la V1 sont implémentés et fonctionnent en local (SQLite). Retours d'Alex du 19.09 traités : voir « Évolutions demandées par Alex » ci-dessous. Développement toujours **entièrement en local** — pas d'hébergement, coordonnées bancaires = placeholders marqués `[PLACEHOLDER]` dans « Paramètres du club ».
 
-Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (54 tests, verts).
+Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.env`, `migrate`, `seed_reference_data`, `runserver`). Tests : `python manage.py test apps` (72 tests, verts).
 
 | Module | État | Où |
 |---|---|---|
-| Fondations, connexion, création de compte (code d'invitation), **A2F TOTP obligatoire** | Terminé | `apps/accounts` (middleware `LoginAndTwoFactorRequiredMiddleware`) |
+| Fondations, création de compte (code d'invitation) avec **vérification de l'email**, **connexion par mot de passe** (identifiant ou email), blocage après 5 échecs, mot de passe oublié | Terminé | `apps/accounts` (middleware `LoginRequiredMiddleware`, `security.py`, `emails.py`) |
 | Tableau de bord (compteurs, factures en attente + prochain rappel, inscriptions à valider, notes, to-do tracée) + **Paramètres du club** (point de configuration unique) | Terminé | `apps/dashboard` |
 | Contacts/Membres : 3 profils, ID `prenom.nom` + homonymes, catégorie d'âge auto, groupes, catégories fixes, recherche, filtres sur tout champ, colonnes personnalisables par utilisateur, vues enregistrées, champs personnalisés depuis l'UI, import CSV, modification de masse, validation d'inscription | Terminé | `apps/members` (`fields.py` = registre des champs partagé avec formulaires/exports) |
 | Comptabilité : barème 3×4, facture PDF (en-tête club + bloc QR-bill `qrbill`), référence QR/SCOR via `python-stdnum`, archivage auto dans Fichiers, envoi email Cc trésorier, lots en 2 étapes, relances à 1 mois (`send_reminders`), pointage manuel « payée » | Terminé (voir point ouvert SIX ci-dessous) | `apps/billing` |
@@ -45,6 +45,14 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 - Liste des contacts : colonne **« Statut de la facture »** (facture de cotisation de la saison en cours, pastille colorée, filtrable, sans requête par ligne) ; bouton **« Créer une liste de diffusion »** depuis les lignes cochées (`mailing:list_from_selection`).
 - Divers : redirections `next` vérifiées (`apps/accounts/utils.safe_next`) ; CSS/JS versionnés par date de modification (`?v=`) pour éviter les anciennes versions en cache.
 
+**Changement de connexion (08.10.2026, décision d'Alex) — fait :**
+- A2F par application (TOTP, `django-otp`) **retirée** : paquet désinstallé, tables supprimées, pages A2F supprimées.
+- Inscription : compte **inactif** jusqu'au clic sur le lien de vérification envoyé par email (`AccountProfile.email_verified_at`, jeton `security.email_verification_token`, validité `PASSWORD_RESET_TIMEOUT` = 3 jours, renvoi possible). Comptes existants marqués vérifiés par migration.
+- Connexion par **mot de passe** (nom d'utilisateur ou email) ; blocage 15 min après 5 échecs (identifiant + IP) ou 20 échecs (IP) — réglages `LOGIN_MAX_FAILURES*` / `LOGIN_LOCKOUT_SECONDS` ; « Mot de passe oublié » par email.
+- En local (DEBUG + backend email console), le lien de vérification / de réinitialisation est aussi affiché sur la page (`emails.dev_email_preview_enabled`) — jamais en production.
+- `/admin/` et `/media/` exigent désormais d'être connecté (auparavant `/media/` était public en développement : factures PDF lisibles sans connexion).
+- Compte administrateur de développement **`alex`** (superuser) créé dans la base locale ; son mot de passe, fourni par Alex, ne respecte pas la règle des 12 caractères : à changer avant toute mise en production. Il n'est écrit nulle part dans le dépôt.
+
 **Points à traiter avec Alex (ne pas trancher seul) :**
 - **Validation SIX** : le portail officiel https://validation.iso-payments.ch exige un compte utilisateur → Alex doit s'y inscrire et déposer `docs/exemples/exemple-qr-facture.pdf`. En attendant, `python manage.py check_qrbill` décode le QR du PDF réel et le vérifie contre la norme (passe : adresses structurées obligatoires IG 2.3, référence QR valide, 46 mm, position OK).
 - Montants des 12 tarifs (barème vide → facturation bloquée pour les membres concernés).
@@ -58,7 +66,7 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 - Les adresses email président-e / vice-président-e / vérificateur des comptes sont enregistrées mais **pas encore utilisées** automatiquement (aucune notification ni Cc) : à préciser si elles doivent recevoir des copies.
 - Facture manuelle : le destinataire doit exister dans les contacts (créer une fiche « Entreprise » pour un sponsor).
 
-**Bugs connus / limites :** aucun bug bloquant connu. HTTPS local non activé (réglages HTTPS prêts via `DJANGO_FORCE_HTTPS=True` pour la production). Réinitialisation de l'A2F d'un utilisateur : via l'administration technique `/admin/` (supprimer son appareil TOTP).
+**Bugs connus / limites :** aucun bug bloquant connu. HTTPS local non activé (réglages HTTPS prêts via `DJANGO_FORCE_HTTPS=True` pour la production). Mot de passe oublié : lien « Mot de passe oublié » de la page de connexion (envoi par email). La limitation des tentatives repose sur le cache Django (mémoire locale) : prévoir un cache partagé en production si plusieurs processus.
 
 ## Stack retenue (cahier des charges section 11)
 
@@ -72,7 +80,7 @@ Installation/lancement : voir `README.md` (`pip install -r requirements.txt`, `.
 Ce projet traite des données personnelles sensibles, y compris de mineurs, et des numéros AVS. Ces points doivent être respectés dès les premières briques de code, pas ajoutés après coup :
 
 - Authentification obligatoire sur toute page de gestion (aucun accès anonyme, en dehors des formulaires publics d'inscription)
-- **A2F (authentification à deux facteurs) obligatoire** pour tous les comptes du comité — configurée à la création du compte, demandée à chaque connexion
+- ~~A2F obligatoire~~ → **remplacée le 08.10.2026 sur décision d'Alex** par : **vérification de l'adresse email à l'inscription** (compte inactif tant que le lien n'est pas cliqué) puis **connexion par mot de passe**, avec blocage temporaire après plusieurs échecs et mot de passe oublié par email. Ne pas réintroduire l'A2F sans demande d'Alex ; ne pas affaiblir ces protections restantes.
 - HTTPS partout
 - Secrets (mot de passe base de données, identifiants email, futures coordonnées bancaires, clé secrète Django) en variables d'environnement — jamais en clair dans le code, jamais committés dans le dépôt
 - Numéro AVS traité comme donnée sensible : non affiché par défaut dans les listes, exclu par défaut des exports (sauf sélection explicite de la colonne)

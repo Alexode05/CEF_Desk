@@ -1,0 +1,13 @@
+{% autoescape off %}Bonjour {{ user.first_name|default:user.username }},
+
+Un compte CEF Desk (gestion du {{ club_name }}) vient d'être créé avec cette adresse email.
+
+Pour l'activer, cliquez sur le lien ci-dessous (valable {{ days }} jours) :
+{{ link }}
+
+Vous pourrez ensuite vous connecter avec votre nom d'utilisateur « {{ user.username }} » (ou cette adresse email) et votre mot de passe.
+
+Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email : le compte restera inactif.
+
+CEF Desk
+{% endautoescape %}

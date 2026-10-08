@@ -50,8 +50,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.humanize",
     # Tiers
-    "django_otp",
-    "django_otp.plugins.otp_totp",
     "crispy_forms",
     "crispy_bootstrap5",
     # CEF Desk
@@ -71,8 +69,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django_otp.middleware.OTPMiddleware",
-    "apps.accounts.middleware.LoginAndTwoFactorRequiredMiddleware",
+    "apps.accounts.middleware.LoginRequiredMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -152,8 +149,13 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
-# Nom affiché dans l'application d'authentification (TOTP).
-OTP_TOTP_ISSUER = "CEF Desk"
+# Connexion par mot de passe (A2F retirée le 08.10.2026, décision d'Alex) : l'adresse email est
+# vérifiée à l'inscription, et les tentatives de connexion sont limitées.
+LOGIN_MAX_FAILURES = 5  # échecs pour un même identifiant depuis une même adresse IP
+LOGIN_MAX_FAILURES_PER_IP = 20  # échecs depuis une même adresse IP, tous identifiants confondus
+LOGIN_LOCKOUT_SECONDS = 15 * 60
+# Validité des liens de vérification d'email et de réinitialisation du mot de passe (3 jours).
+PASSWORD_RESET_TIMEOUT = 3 * 24 * 60 * 60
 
 # Code d'invitation pour la création de comptes comité (vide => désactivé).
 CEF_REGISTRATION_CODE = env("CEF_REGISTRATION_CODE", "").strip()

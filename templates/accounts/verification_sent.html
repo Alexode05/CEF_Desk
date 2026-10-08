@@ -1,0 +1,21 @@
+{% extends "base_public.html" %}
+{% block title %}Vérifiez votre email · CEF Desk{% endblock %}
+{% block content %}
+<div class="text-center mb-3"><i class="bi bi-envelope-check text-primary" style="font-size:3rem"></i></div>
+<h1 class="h4 mb-2 text-center">Vérifiez votre adresse email</h1>
+<p class="text-muted">
+  {% if email %}Si un compte en attente correspond à <strong>{{ email }}</strong>, un email{% else %}Un email{% endif %}
+  contenant un lien de vérification vient d'être envoyé. Cliquez sur ce lien pour activer votre compte, puis connectez-vous avec votre mot de passe.
+</p>
+<p class="small text-muted">Le lien est valable 3 jours. Pensez à regarder dans les courriers indésirables.</p>
+{% if dev_link %}
+<div class="alert alert-warning small">
+  <strong>Mode développement local :</strong> aucun serveur email n'est configuré, l'email n'est pas réellement envoyé.
+  Lien de vérification : <a href="{{ dev_link }}" class="text-break">{{ dev_link }}</a>
+</div>
+{% endif %}
+<div class="d-grid gap-2 mt-4">
+  <a class="btn btn-primary" href="{% url 'accounts:login' %}">Aller à la connexion</a>
+  <a class="btn btn-link btn-sm" href="{% url 'accounts:resend_verification' %}">Je n'ai rien reçu : renvoyer l'email</a>
+</div>
+{% endblock %}

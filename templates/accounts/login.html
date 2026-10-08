@@ -8,8 +8,12 @@
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ next }}">
   {{ form|crispy }}
+  {% if show_resend_link %}
+  <p class="small"><a href="{% url 'accounts:resend_verification' %}"><i class="bi bi-envelope"></i> Renvoyer l'email de vérification</a></p>
+  {% endif %}
   <button class="btn btn-primary w-100 btn-lg mt-2" type="submit"><i class="bi bi-box-arrow-in-right"></i> Se connecter</button>
 </form>
+<p class="text-center small mt-3 mb-0"><a href="{% url 'accounts:password_reset' %}">Mot de passe oublié ?</a></p>
 {% if registration_enabled %}
 <hr class="my-4">
 <p class="text-center mb-0 small">Nouveau membre du comité ? <a href="{% url 'accounts:register' %}">Créer un compte</a></p>
